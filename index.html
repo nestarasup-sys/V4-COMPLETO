@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'">
-<title>Gacha V4 • Corpo & Pose</title><link rel="stylesheet" href="styles.css">
+<title>Gacha V4 • Corpo & Pose</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="src/poses.css">
 <script src="src/core.js" defer></script><script src="src/renderer.js" defer></script><script src="src/drag.js" defer></script></head>
 <body>
 <header class="topbar"><div class="brand"><div class="brand-mark">✦</div><div><strong>GACHA <em>V4</em></strong><small>BODY STUDIO • ALPHA</small></div></div>
@@ -21,7 +21,8 @@
 <div class="editor-grid"><div class="canvas-side"><div class="canvas-header"><span>CANVAS • 1122 × 1402</span><span id="zoom-label">100%</span></div><div class="canvas-shell"><div class="editor-stage" id="editor-stage"></div></div>
 <div class="canvas-options"><label><input id="joint-toggle" type="checkbox" checked> <span>Juntas</span></label><label><input id="grid-toggle" type="checkbox"> <span>Grade</span></label><label><input id="snap-toggle" type="checkbox"> <span>Snap</span></label></div>
 <div class="zoom-control"><span>Zoom</span><input id="zoom-range" type="range" min="70" max="145" value="100" step="5"><span>145%</span></div>
-<div class="pose-presets"><div class="caption">POSES RÁPIDAS</div><div class="preset-buttons"><button data-action="preset:neutra">Neutra</button><button data-action="preset:aceno">Aceno</button><button data-action="preset:corrida">Corrida</button><button data-action="preset:sentada">Sentada</button><button data-action="preset:danca">Dança</button></div></div></div>
+<div class="pose-presets"><div class="caption">POSES RÁPIDAS</div><div class="preset-buttons"><button data-action="preset:neutra">Neutra</button><button data-action="preset:aceno">Aceno</button><button data-action="preset:corrida">Corrida</button><button data-action="preset:sentada">Sentada</button><button data-action="preset:danca">Dança</button></div></div>
+<section class="pose-library" aria-labelledby="pose-library-title"><div class="pose-library-heading"><div><div class="caption" id="pose-library-title">BIBLIOTECA DE POSES</div><small id="pose-library-count"></small></div><div class="pose-library-actions"><button class="secondary requires-character" data-action="save-pose">＋ Salvar pose</button><button class="ghost" data-action="import-poses">Importar</button><button class="ghost" data-action="export-poses">Exportar</button></div></div><div id="pose-library-grid" class="pose-library-grid"></div><div class="pose-library-pager"><button class="ghost" data-action="pose-page-prev">‹ Anterior</button><span id="pose-page-label"></span><button class="ghost" data-action="pose-page-next">Próxima ›</button></div></section></div>
 <aside class="properties"><div class="section-label">PEÇAS DO CORPO <span>10</span></div><div id="part-list" class="part-list"></div><div id="part-tools" class="part-tools"></div></aside></div></div>
 <div id="panel-project" class="project-tab" hidden><div class="editor-header"><div><small>ARQUIVO DO PERSONAGEM</small><h2>Projeto & aparência</h2><p>Organize os slots e guarde seu trabalho.</p></div></div>
 <div class="project-form"><label>Nome do personagem<input id="character-name" type="text" maxlength="60" placeholder="Nome do personagem"></label>

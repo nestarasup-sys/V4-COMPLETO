@@ -7,12 +7,14 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.cjs",
+    "test:e2e": "node test/electron.e2e.cjs",
     "check": "node --check src/core.js && node --check src/renderer.js && node --check electron/main.cjs && node --check electron/preload.cjs",
     "dist": "electron-builder"
   },
   "devDependencies": {
-    "electron": "^37.0.0",
-    "electron-builder": "^26.0.12"
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "playwright": "^1.64.0"
   },
   "build": {
     "appId": "com.gachav4.bodyeditor",

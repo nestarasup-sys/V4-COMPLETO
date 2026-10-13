@@ -1,7 +1,7 @@
 (function(){
 "use strict";
 var C=window.GachaCore,$=function(id){return document.getElementById(id);};
-var s={project:C.freshProject(),slot:0,part:"head",tool:"rotate",joints:true,grid:false,snap:false,zoom:100,tab:"body",undo:[],redo:[]};
+var s={project:C.freshProject(),slot:0,part:"head",tool:"rotate",joints:true,grid:false,snap:false,zoom:100,tab:"body",posePage:0,undo:[],redo:[]};
 var clock;
 function current(){return s.project.slots[s.slot];}
 function serialize(){return JSON.stringify(s.project);}
@@ -9,6 +9,19 @@ function autosave(){clearTimeout(clock);clock=setTimeout(function(){var txt=seri
 function history(before){if(before===serialize())return;s.undo.push(before);if(s.undo.length>80)s.undo.shift();s.redo=[];autosave();}
 function edit(fn){if(!current())return;var before=serialize();fn(current());history(before);render();}
 function tell(t){var a=$("toast");a.textContent=t;a.classList.add("active");clearTimeout(tell.timer);tell.timer=setTimeout(function(){a.classList.remove("active");},3000);}
+function renderPoseLibrary(){
+ var poses=s.project.poses||[],pageSize=12,pages=Math.max(1,Math.ceil(poses.length/pageSize));
+ s.posePage=C.clamp(s.posePage,0,pages-1);
+ var visible=poses.slice(s.posePage*pageSize,(s.posePage+1)*pageSize),ch=current();
+ $("pose-library-count").textContent=poses.length+" poses salvas";
+ $("pose-page-label").textContent=(s.posePage+1)+" / "+pages;
+ document.querySelector('[data-action="pose-page-prev"]').disabled=s.posePage===0;
+ document.querySelector('[data-action="pose-page-next"]').disabled=s.posePage>=pages-1;
+ $("pose-library-grid").innerHTML=visible.map(function(pose){
+   var thumbnail={pose:pose.pose,skin:ch?ch.skin:"#f9eadd",mirrored:ch?ch.mirrored:false};
+   return '<article class="pose-card"><button class="pose-apply" data-pose-action="apply" data-pose-id="'+C.esc(pose.id)+'" title="Aplicar '+C.esc(pose.name)+'"><span class="pose-thumb">'+C.renderSVG(thumbnail,{preview:true})+'</span><strong>'+C.esc(pose.name)+'</strong></button><div class="pose-card-actions"><button data-pose-action="rename" data-pose-id="'+C.esc(pose.id)+'" aria-label="Renomear '+C.esc(pose.name)+'" title="Renomear">✎</button><button data-pose-action="duplicate" data-pose-id="'+C.esc(pose.id)+'" aria-label="Duplicar '+C.esc(pose.name)+'" title="Duplicar">⧉</button><button data-pose-action="delete" data-pose-id="'+C.esc(pose.id)+'" aria-label="Excluir '+C.esc(pose.name)+'" title="Excluir">×</button></div></article>';
+ }).join("")||'<p class="pose-library-empty">Salve uma pose para começar sua biblioteca.</p>';
+}
 function draw(){
  var ch=current();
  $("phone-preview").innerHTML=ch?C.renderSVG(ch,{preview:true}):'<p class="placeholder">Selecione um slot</p>';
@@ -19,6 +32,7 @@ function render(){
  $("slot-grid").innerHTML=s.project.slots.map(function(ch,i){return '<button type="button" class="slot '+(s.slot===i?"selected ":"")+(ch?"occupied":"empty")+'" data-slot="'+i+'" aria-label="Slot '+(i+1)+'" aria-pressed="'+(s.slot===i)+'">'+(ch?'<span class="slot-figure">'+C.renderSVG(ch,{preview:true})+'</span>':'<span class="slot-add">+</span>')+'<span class="slot-index">'+String(i+1).padStart(2,"0")+'</span></button>';}).join("");
  $("slot-count").textContent=s.project.slots.filter(Boolean).length+" / 16";
  draw();
+ renderPoseLibrary();
  var ch=current();$("slot-title").textContent=ch?ch.name:"Slot vazio";$("slot-position").textContent="Slot "+String(s.slot+1).padStart(2,"0");
  $("part-list").innerHTML=ch?C.PARTS.map(function(p){return '<button class="part-item '+(p.id===s.part?"active":"")+'" data-part-select="'+p.id+'"><span class="part-dot"></span><span>'+C.esc(p.name)+'</span><span class="part-arrow">›</span></button>';}).join(""):"";
  if(ch){
@@ -48,6 +62,10 @@ function restore(step){
 }
 function fileName(ch,ext){return (ch?ch.name:"gacha-v4").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9_-]+/gi,"-").slice(0,40)+"."+ext;}
 function download(blob,name){var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(url);},2000);}
+async function openJSONText(){
+ if(window.desktopAPI)return await window.desktopAPI.openText();
+ return await new Promise(function(resolve){var input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=function(){var file=input.files[0];if(file)file.text().then(resolve);else resolve(null);};input.click();});
+}
 async function saveJSON(){
  var txt=JSON.stringify(s.project,null,2);
  if(window.desktopAPI){if(!await window.desktopAPI.saveText("gacha-corpo-v1.json",txt))return;}
@@ -67,12 +85,53 @@ async function savePNG(){
 }
 async function loadJSON(){
  try{
-  var txt;if(window.desktopAPI)txt=await window.desktopAPI.openText();
-  else txt=await new Promise(function(resolve){var input=document.createElement("input");input.type="file";input.accept=".json";input.onchange=function(){var file=input.files[0];if(file)file.text().then(resolve);else resolve(null);};input.click();});
+  var txt=await openJSONText();
   if(!txt)return;var next=C.normalize(JSON.parse(txt)),prev=serialize();s.project=next;history(prev);s.slot=Math.max(0,next.slots.findIndex(Boolean));s.part="head";render();tell("Projeto importado.");
  }catch(e){tell("Erro ao importar: "+e.message);}
 }
+async function exportPoseLibrary(){
+ var data={format:"gacha-pose-library-v1",version:1,poses:s.project.poses.map(function(p){return {id:p.id,name:p.name,pose:p.pose,builtIn:!!p.builtIn};})};
+ var txt=JSON.stringify(data,null,2);
+ if(window.desktopAPI){if(!await window.desktopAPI.saveText("biblioteca-de-poses.json",txt))return;}
+ else download(new Blob([txt],{type:"application/json"}),"biblioteca-de-poses.json");
+ tell("Biblioteca de poses exportada.");
+}
+async function importPoseLibrary(){
+ try{
+  var txt=await openJSONText();if(!txt)return;
+  var incoming=C.normalizePoseLibrary(JSON.parse(txt)),before=serialize(),ids=new Set(s.project.poses.map(function(p){return p.id;}));
+  incoming.forEach(function(p){
+   if(ids.has(p.id))p=C.createPoseSnapshot(p.name,{pose:p.pose});
+   ids.add(p.id);s.project.poses.push(p);
+  });
+  if(s.project.poses.length>100){s.project=JSON.parse(before);throw new Error("A importação ultrapassaria o limite de 100 poses.");}
+  s.posePage=Math.max(0,Math.ceil(s.project.poses.length/12)-1);history(before);render();tell(incoming.length+" poses importadas.");
+ }catch(e){tell("Erro ao importar poses: "+e.message);}
+}
+function managePose(button){
+ var id=button.dataset.poseId,kind=button.dataset.poseAction,index=s.project.poses.findIndex(function(p){return p.id===id;});
+ if(index<0)return;
+ var selected=s.project.poses[index];
+ if(kind==="apply"){
+  if(!current())return tell("Crie ou selecione um personagem primeiro.");
+  edit(function(ch){C.applySavedPose(ch,selected);});tell("Pose aplicada: "+selected.name);return;
+ }
+ if(kind==="delete"&&!confirm('Excluir a pose “'+selected.name+'”?'))return;
+ var before=serialize();
+ if(kind==="rename"){
+  var name=prompt("Novo nome para a pose:",selected.name);if(name===null)return;
+  name=name.trim().slice(0,50);if(!name)return tell("O nome da pose não pode ficar vazio.");
+  s.project.poses[index].name=name;
+ }else if(kind==="duplicate"){
+  if(s.project.poses.length>=100)return tell("A biblioteca atingiu o limite de 100 poses.");
+  s.project.poses.splice(index+1,0,C.createPoseSnapshot((selected.name+" (cópia)").slice(0,50),{pose:selected.pose}));
+ }else if(kind==="delete")s.project.poses.splice(index,1);
+ else return;
+ s.posePage=Math.floor(Math.max(0,index)/12);history(before);render();
+ tell(kind==="rename"?"Pose renomeada.":kind==="duplicate"?"Pose duplicada.":"Pose excluída.");
+}
 async function action(e){
+ var poseButton=e.target.closest("[data-pose-action]");if(poseButton){managePose(poseButton);return;}
  var b=e.target.closest("[data-action],[data-slot],[data-part-select],[data-tool],[data-tab]");if(!b)return;
  if(b.hasAttribute("data-slot")){slot(Number(b.dataset.slot));return;}
  if(b.hasAttribute("data-part-select")){s.part=b.dataset.partSelect;render();return;}
@@ -90,6 +149,16 @@ async function action(e){
  else if(k==="export-json")await saveJSON();
  else if(k==="export-png")await savePNG();
  else if(k==="import-json")await loadJSON();
+  else if(k==="save-pose"){
+   if(!current())return tell("Crie ou selecione um personagem primeiro.");
+   if(s.project.poses.length>=100)return tell("A biblioteca atingiu o limite de 100 poses.");
+   var name=prompt("Nome da pose atual:","Minha pose");if(name===null)return;
+   try{var before=serialize();s.project.poses.push(C.createPoseSnapshot(name,current()));s.posePage=Math.floor((s.project.poses.length-1)/12);history(before);render();tell("Pose salva na biblioteca.");}catch(err){tell(err.message);}
+  }
+  else if(k==="import-poses")await importPoseLibrary();
+  else if(k==="export-poses")await exportPoseLibrary();
+  else if(k==="pose-page-prev"){s.posePage=Math.max(0,s.posePage-1);renderPoseLibrary();}
+  else if(k==="pose-page-next"){s.posePage=Math.min(Math.ceil(s.project.poses.length/12)-1,s.posePage+1);renderPoseLibrary();}
 }
 function bind(){
  document.addEventListener("click",function(e){Promise.resolve(action(e)).catch(function(err){tell("Erro: "+err.message);});});
