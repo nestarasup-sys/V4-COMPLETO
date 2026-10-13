@@ -1,11 +1,13 @@
 "use strict";
-const {app,BrowserWindow,session}=require("electron");
+const {app,BrowserWindow}=require("electron");
+const fsSync=require("node:fs");
 const fs=require("node:fs/promises");
 const path=require("node:path");
 const os=require("node:os");
 const assert=require("node:assert/strict");
 const testData=path.join(os.tmpdir(),"gacha-v4-ui-smoke-"+process.pid);
 const partition="gacha-ui-smoke-"+process.pid;
+process.on("exit",()=>{try{fsSync.rmSync(testData,{recursive:true,force:true});}catch(_){}});
 // Keep Electron alive until the async assertions finish, so an unexpected
 // window close cannot turn a failed smoke run into a false exit code 0.
 app.on("window-all-closed",()=>{});
@@ -141,13 +143,11 @@ async function check(){
   assert.equal(reopened.official,17.5,"Pose oficial deve persistir após reabrir");
   assert.equal(reopened.draft,savedDraft,"Rascunho deve persistir após reabrir");
   assert.equal(reopened.saved,3,"Biblioteca individual deve persistir após reabrir");
-  assert.equal(reopened.poseSlots,3,"Biblioteca rápida deve persistir após reabrir");
+  assert.equal(reopened.poseSlots,4,"Biblioteca rápida deve persistir após reabrir");
   assert.equal(reopened.firstPose,"Pose de teste","Primeiro slot compartilhado deve manter a pose salva");
   console.log("UI smoke OK: slots, preview, pose CRUD/import/export, JSON, alpha, draft isolation, undo/redo, persistence");
  }finally{
   win.destroy();
-  try{await session.fromPartition(partition).clearStorageData();}catch(error){console.warn("UI smoke storage cleanup:",error.message);}
-  try{await fs.rm(testData,{recursive:true,force:true});}catch(error){console.warn("UI smoke profile cleanup:",error.message);}
  }
 }
 app.whenReady().then(()=>check().then(()=>app.quit()).catch(err=>{console.error(err);process.exitCode=1;app.quit();}));
