@@ -115,11 +115,13 @@ async function check(){
   const savedDraft=await run('window.GachaEditor.current().workingPose.head.x');
   const previousWindow=win;win=new BrowserWindow(options);
   await win.loadFile(path.join(__dirname,"..","index.html"));await sleep(350);previousWindow.destroy();
-  const reopened=await win.webContents.executeJavaScript('({slots:window.GachaEditor.state.project.slots.filter(Boolean).length,official:window.GachaEditor.current().pose.head.x,draft:window.GachaEditor.current().workingPose.head.x,saved:window.GachaEditor.current().savedPoses.length})',true);
-  assert.equal(reopened.slots,2,"Personagens devem persistir após fechar e reabrir a janela");
+  const reopened=await win.webContents.executeJavaScript('({slots:window.GachaEditor.state.project.slots.filter(Boolean).length,official:window.GachaEditor.current().pose.head.x,draft:window.GachaEditor.current().workingPose.head.x,saved:window.GachaEditor.current().savedPoses.length,poseSlots:window.GachaEditor.state.project.poseSlots.filter(Boolean).length,firstPose:window.GachaEditor.state.project.poseSlots[0].name})',true);
+  assert.equal(reopened.slots,3,"Personagens devem persistir após fechar e reabrir a janela");
   assert.equal(reopened.official,17.5,"Pose oficial deve persistir após reabrir");
   assert.equal(reopened.draft,savedDraft,"Rascunho deve persistir após reabrir");
   assert.equal(reopened.saved,3,"Biblioteca individual deve persistir após reabrir");
+  assert.equal(reopened.poseSlots,3,"Biblioteca rápida deve persistir após reabrir");
+  assert.equal(reopened.firstPose,"Pose de teste","Primeiro slot compartilhado deve manter a pose salva");
   console.log("UI smoke OK: slots, preview, pose CRUD/import/export, JSON, alpha, draft isolation, undo/redo, persistence");
  }finally{win.destroy();await session.fromPartition(partition).clearStorageData();await fs.rm(testData,{recursive:true,force:true});}
 }
