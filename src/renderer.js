@@ -24,7 +24,7 @@ function render(){
  if(ch){
    var p=C.BY_ID[s.part],v=ch.pose[s.part];
    $("part-tools").innerHTML='<div class="tool-title"><span>AJUSTE FINO</span><strong>'+C.esc(p.name)+'</strong></div><div class="rotation-heading"><span>Rotação</span><strong id="rotation-value">'+Math.round(v.rotation)+'°</strong></div><input type="range" id="rotation-slider" min="-180" max="180" step="1" value="'+v.rotation+'"><div class="field-grid">'+
-   ["x","y","rotation"].map(function(k){return '<label class="control-input"><span>'+({x:"Posição X",y:"Posição Y",rotation:"Ângulo °"}[k])+'</span><input type="number" data-pose-field="'+k+'" min="'+(k==="rotation"?-180:-600)+'" max="'+(k==="rotation"?180:600)+'" value="'+v[k]+'"></label>';}).join("")+
+   ["x","y","rotation"].map(function(k){return '<label class="control-input"><span>'+({x:"Posição X",y:"Posição Y",rotation:"Ângulo °"}[k])+'</span><input type="number" data-pose-field="'+k+'" min="'+(k==="rotation"?-180:-600)+'" max="'+(k==="rotation"?180:600)+'" step="0.1" value="'+v[k]+'"></label>';}).join("")+ 
    '</div><button class="subtle-btn" data-action="reset-part">↺ Restaurar esta peça</button>';
    $("character-name").value=ch.name;$("skin-color").value=ch.skin;
  }else{$("part-tools").textContent="Crie um personagem em um slot.";}
@@ -95,7 +95,22 @@ function bind(){
  document.addEventListener("click",function(e){Promise.resolve(action(e)).catch(function(err){tell("Erro: "+err.message);});});
  $("character-name").addEventListener("change",function(e){edit(function(ch){ch.name=e.target.value.trim().slice(0,60)||ch.name;});});
  $("skin-color").addEventListener("change",function(e){edit(function(ch){ch.skin=e.target.value;});});
- document.addEventListener("change",function(e){var f=e.target.dataset.poseField;if(!f||!current())return;var n=Number(e.target.value);if(!Number.isFinite(n))return;edit(function(ch){ch.pose[s.part][f]=C.clamp(n,f==="rotation"?-180:-600,f==="rotation"?180:600);});});
+ var numberBefore=null;
+ document.addEventListener("focusin",function(e){if(e.target.matches("[data-pose-field]"))numberBefore=serialize();});
+ document.addEventListener("input",function(e){
+   var f=e.target.dataset.poseField;if(!f||!current())return;
+   var n=Number(e.target.value);if(e.target.value.trim()===""||!Number.isFinite(n))return;
+   current().pose[s.part][f]=C.clamp(n,f==="rotation"?-180:-600,f==="rotation"?180:600);
+   if(f==="rotation"){var slider=$("rotation-slider");slider.value=current().pose[s.part].rotation;$("rotation-value").textContent=Math.round(current().pose[s.part].rotation)+"°";}
+   draw();
+ });
+ document.addEventListener("change",function(e){
+   var f=e.target.dataset.poseField;if(!f||!current())return;
+   var n=Number(e.target.value);if(!Number.isFinite(n))return;
+   var before=numberBefore||serialize();numberBefore=null;
+   current().pose[s.part][f]=C.clamp(n,f==="rotation"?-180:-600,f==="rotation"?180:600);
+   history(before);render();
+ });
  var startRange=null;
  document.addEventListener("pointerdown",function(e){if(e.target.id==="rotation-slider")startRange=serialize();});document.addEventListener("focusin",function(e){if(e.target.id==="rotation-slider"&&!startRange)startRange=serialize();});
  document.addEventListener("input",function(e){if(e.target.id!=="rotation-slider"||!current())return;current().pose[s.part].rotation=Number(e.target.value);$("rotation-value").textContent=e.target.value+"°";draw();});
