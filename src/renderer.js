@@ -1,115 +1,232 @@
-(function(){
+(function () {
 "use strict";
-var C=window.GachaCore,$=function(id){return document.getElementById(id);};
-var s={project:C.freshProject(),slot:0,part:"head",tool:"rotate",joints:true,grid:false,snap:false,zoom:100,tab:"body",undo:[],redo:[]};
-var clock;
-function current(){return s.project.slots[s.slot];}
-function serialize(){return JSON.stringify(s.project);}
-function autosave(){clearTimeout(clock);clock=setTimeout(function(){var txt=serialize();try{localStorage.setItem("gacha-v4-body-project",txt);}catch(e){}if(window.desktopAPI)window.desktopAPI.autosave(txt).catch(console.warn);},250);}
-function history(before){if(before===serialize())return;s.undo.push(before);if(s.undo.length>80)s.undo.shift();s.redo=[];autosave();}
-function edit(fn){if(!current())return;var before=serialize();fn(current());history(before);render();}
-function tell(t){var a=$("toast");a.textContent=t;a.classList.add("active");clearTimeout(tell.timer);tell.timer=setTimeout(function(){a.classList.remove("active");},3000);}
+const C=window.GachaCore;
+const $=id=>document.getElementById(id);
+const s={project:C.freshProject(),slot:0,part:"head",page:"home",tool:"move",joints:true,grid:true,snap:false,zoom:100,undo:[],redo:[]};
+let clock,sliderStart=null;
+const current=()=>s.project.slots[s.slot];
+const editing=()=>{const ch=current();return ch?{...ch,pose:ch.workingPose}:null;};
+const serialize=()=>JSON.stringify(s.project);
+function autosave(){
+ clearTimeout(clock);clock=setTimeout(()=>{
+  const data=serialize();
+  try{localStorage.setItem("gacha-v4-body-project",data);}catch(err){console.warn(err);}
+  if(window.desktopAPI)window.desktopAPI.autosave(data).catch(console.warn);
+ },260);
+}
+function history(before){
+ if(before===serialize())return;
+ s.undo.push(before);if(s.undo.length>80)s.undo.shift();s.redo.length=0;autosave();
+}
+function edit(fn){if(!current())return;const prev=serialize();fn(current());history(prev);render();}
+function editDraft(fn){edit(ch=>fn(ch.workingPose,ch));}
+function toast(msg){
+ const el=$("toast");el.textContent=msg;el.classList.add("active");
+ clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove("active"),3000);
+}
+function showPage(page){
+ s.page=page;
+ $("page-home").hidden=page!=="home";$("page-pose").hidden=page!=="pose";
+ $("breadcrumb-text").textContent=page==="home"?"Seu estúdio":"Personagens";
+ $("breadcrumb-current").textContent=page==="home"?"Personagens":"Corpo / Pose";
+ render();
+}
 function draw(){
- var ch=current();
- $("phone-preview").innerHTML=ch?C.renderSVG(ch,{preview:true}):'<p class="placeholder">Selecione um slot</p>';
- $("editor-stage").innerHTML=ch?C.renderSVG(ch,{editor:true,joints:s.joints,selected:s.part,grid:s.grid}):'<p class="placeholder">Selecione um personagem</p>';
+ const ch=current();
+ $("phone-preview").innerHTML=ch?C.renderSVG(ch,{preview:true}):'<p class="placeholder">Crie um personagem para começar.</p>';
+ $("editor-stage").innerHTML=ch?C.renderSVG(editing(),{editor:true,joints:s.joints,selected:s.part,grid:s.grid}):'<p class="placeholder">Selecione um personagem.</p>';
  $("editor-stage").style.setProperty("--stage-zoom",s.zoom/100);
 }
-function render(){
- $("slot-grid").innerHTML=s.project.slots.map(function(ch,i){return '<button type="button" class="slot '+(s.slot===i?"selected ":"")+(ch?"occupied":"empty")+'" data-slot="'+i+'" aria-label="Slot '+(i+1)+'" aria-pressed="'+(s.slot===i)+'">'+(ch?'<span class="slot-figure">'+C.renderSVG(ch,{preview:true})+'</span>':'<span class="slot-add">+</span>')+'<span class="slot-index">'+String(i+1).padStart(2,"0")+'</span></button>';}).join("");
- $("slot-count").textContent=s.project.slots.filter(Boolean).length+" / 16";
- draw();
- var ch=current();$("slot-title").textContent=ch?ch.name:"Slot vazio";$("slot-position").textContent="Slot "+String(s.slot+1).padStart(2,"0");
- $("part-list").innerHTML=ch?C.PARTS.map(function(p){return '<button class="part-item '+(p.id===s.part?"active":"")+'" data-part-select="'+p.id+'"><span class="part-dot"></span><span>'+C.esc(p.name)+'</span><span class="part-arrow">›</span></button>';}).join(""):"";
- if(ch){
-   var p=C.BY_ID[s.part],v=ch.pose[s.part];
-   $("part-tools").innerHTML='<div class="tool-title"><span>AJUSTE FINO</span><strong>'+C.esc(p.name)+'</strong></div><div class="rotation-heading"><span>Rotação</span><strong id="rotation-value">'+Math.round(v.rotation)+'°</strong></div><input type="range" id="rotation-slider" min="-180" max="180" step="1" value="'+v.rotation+'"><div class="field-grid">'+
-   ["x","y","rotation"].map(function(k){return '<label class="control-input"><span>'+({x:"Posição X",y:"Posição Y",rotation:"Ângulo °"}[k])+'</span><input type="number" data-pose-field="'+k+'" min="'+(k==="rotation"?-180:-600)+'" max="'+(k==="rotation"?180:600)+'" value="'+v[k]+'"></label>';}).join("")+
-   '</div><button class="subtle-btn" data-action="reset-part">↺ Restaurar esta peça</button>';
-   $("character-name").value=ch.name;$("skin-color").value=ch.skin;
- }else{$("part-tools").textContent="Crie um personagem em um slot.";}
- $("undo-btn").disabled=s.undo.length===0;$("redo-btn").disabled=s.redo.length===0;
- document.querySelectorAll("[data-tool]").forEach(function(b){b.classList.toggle("active",b.dataset.tool===s.tool);});
- document.querySelectorAll("[data-tab]").forEach(function(b){b.classList.toggle("active",b.dataset.tab===s.tab);});
- $("panel-body").hidden=s.tab!=="body";$("panel-project").hidden=s.tab!=="project";
- $("joint-toggle").checked=s.joints;$("grid-toggle").checked=s.grid;$("snap-toggle").checked=s.snap;
- $("zoom-range").value=s.zoom;$("zoom-label").textContent=s.zoom+"%";
- $("empty-slot-message").hidden=!!ch;
- document.querySelectorAll(".requires-character").forEach(function(b){b.disabled=!ch;});
+function drawStage(){
+ const ch=editing();$("editor-stage").innerHTML=ch?C.renderSVG(ch,{editor:true,joints:s.joints,selected:s.part,grid:s.grid}):"";
+ $("editor-stage").style.setProperty("--stage-zoom",s.zoom/100);
 }
-function slot(i){
- if(i<0||i>=16)return;s.slot=i;
- if(!current()){var prev=serialize();s.project.slots[i]=C.makeCharacter(i);history(prev);tell("Personagem criado no slot "+(i+1));}
+function renderInspector(){
+ const ch=current(),p=C.BY_ID[s.part];
+ $("part-list").innerHTML=ch?C.PARTS.map(item=>
+  '<button class="part-item '+(item.id===s.part?"active":"")+'" data-part-select="'+item.id+'" aria-pressed="'+(item.id===s.part)+'"><span class="part-dot"></span><span>'+C.esc(item.name)+'</span><span class="part-arrow">›</span></button>'
+ ).join(""):"";
+ $("selected-piece-label").textContent=p.name;
+ $("selection-description").textContent="Arraste para posicionar ou use os controles abaixo.";
+ if(!ch){$("part-tools").textContent="Selecione um personagem.";return;}
+ const v=ch.workingPose[s.part];
+ const field=(name,id,val)=>'<label class="control-input"><span>'+name+'</span><input type="number" step="1" min="'+(id==="rotation"?-180:-600)+'" max="'+(id==="rotation"?180:600)+'" data-pose-field="'+id+'" value="'+val+'"></label>';
+ $("part-tools").innerHTML=
+  '<div class="tool-title"><span>PEÇA SELECIONADA</span><strong>'+C.esc(p.name)+'</strong></div>'+
+  '<div class="rotation-heading"><span>Rotação</span><strong id="rotation-value">'+Math.round(v.rotation)+'°</strong></div>'+
+  '<input id="rotation-slider" type="range" min="-180" max="180" step="1" value="'+v.rotation+'" aria-label="Ângulo de rotação">'+
+  '<div class="field-grid">'+field("Posição X","x",v.x)+field("Posição Y","y",v.y)+field("Ângulo °","rotation",v.rotation)+'</div>'+
+  '<span class="nudge-title">Encaixe fino · mover 1 pixel</span>'+
+  '<div class="nudge-pad"><span class="empty"></span><button data-action="nudge:0:-1" aria-label="Mover 1 pixel para cima">↑</button><span class="empty"></span>'+
+  '<button data-action="nudge:-1:0" aria-label="Mover 1 pixel para a esquerda">←</button><button data-action="align-part" aria-label="Reencaixar peça" title="Voltar ao ponto de conexão">◎</button><button data-action="nudge:1:0" aria-label="Mover 1 pixel para a direita">→</button>'+
+  '<span class="empty"></span><button data-action="nudge:0:1" aria-label="Mover 1 pixel para baixo">↓</button><span class="empty"></span></div>'+
+  '<div class="control-row"><button class="button outline" data-action="align-part">◎ Encaixar</button><button class="button muted" data-action="reset-part">↶ Restaurar</button></div>';
+}
+function renderSaved(){
+ const ch=current();$("saved-pose-count").textContent=ch?ch.savedPoses.length:"0";
+ $("saved-pose-list").innerHTML=ch&&ch.savedPoses.length?ch.savedPoses.map((entry,i)=>
+  '<div class="saved-item"><span title="'+C.esc(entry.name)+'">'+C.esc(entry.name)+'</span><button data-action="load-saved:'+i+'" title="Carregar no editor sem aplicar">Editar</button><button data-action="delete-saved:'+i+'" aria-label="Excluir '+C.esc(entry.name)+'">×</button></div>'
+ ).join(""):'<p class="empty-saved">Nenhuma pose salva ainda. Monte sua primeira pose e clique em Guardar.</p>';
+}
+function render(){
+ const ch=current();
+ $("slot-grid").innerHTML=s.project.slots.map((item,i)=>'<button type="button" class="slot '+(s.slot===i?"selected ":"")+(item?"occupied":"empty")+'" data-slot="'+i+'" aria-label="Slot '+(i+1)+'" aria-pressed="'+(s.slot===i)+'">'+
+  (item?'<span class="slot-figure">'+C.renderSVG(item,{preview:true})+'</span>':'<span class="slot-add">+</span>')+
+  '<span class="slot-index">'+String(i+1).padStart(2,"0")+'</span></button>').join("");
+ $("slot-count").textContent=s.project.slots.filter(Boolean).length+"/16";
+ $("hero-name").textContent=ch?ch.name:"Slot vazio";
+ $("slot-position").textContent="SLOT "+String(s.slot+1).padStart(2,"0");
+ $("pose-person-name").textContent=ch?ch.name:"Sem personagem";
+ if(ch){$("character-name").value=ch.name;$("skin-color").value=ch.skin;}
+ draw();renderInspector();renderSaved();
+ $("undo-btn").disabled=s.undo.length===0;$("redo-btn").disabled=s.redo.length===0;
+ document.querySelectorAll(".requires-character").forEach(b=>b.disabled=!ch);
+ document.querySelectorAll("[data-tool]").forEach(b=>b.classList.toggle("active",b.dataset.tool===s.tool));
+ $("joint-toggle").checked=s.joints;$("grid-toggle").checked=s.grid;$("snap-toggle").checked=s.snap;
+ $("zoom-label").textContent=s.zoom+"%";$("zoom-range").value=s.zoom;
+}
+function selectSlot(i){
+ if(i<0||i>=16)return;
+ s.slot=i;
+ if(!current()){const prev=serialize();s.project.slots[i]=C.makeCharacter(i);history(prev);toast("Personagem criado no slot "+(i+1));}
  s.part="head";render();
 }
-function restore(step){
- var from=step==="undo"?s.undo:s.redo,to=step==="undo"?s.redo:s.undo;
+function restore(kind){
+ const from=kind==="undo"?s.undo:s.redo,to=kind==="undo"?s.redo:s.undo;
  if(!from.length)return;to.push(serialize());s.project=JSON.parse(from.pop());autosave();render();
 }
-function fileName(ch,ext){return (ch?ch.name:"gacha-v4").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9_-]+/gi,"-").slice(0,40)+"."+ext;}
-function download(blob,name){var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(url);},2000);}
+function filename(ch,ext){return (ch?ch.name:"gacha-v4").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9_-]+/gi,"-").slice(0,45)+"."+ext;}
+function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
 async function saveJSON(){
- var txt=JSON.stringify(s.project,null,2);
- if(window.desktopAPI){if(!await window.desktopAPI.saveText("gacha-corpo-v1.json",txt))return;}
- else download(new Blob([txt],{type:"application/json"}),"gacha-corpo-v1.json");
- tell("JSON exportado.");
+ const text=JSON.stringify(s.project,null,2);
+ if(window.desktopAPI){if(!await window.desktopAPI.saveText("gacha-corpo-v1.json",text))return;}
+ else download(new Blob([text],{type:"application/json"}),"gacha-corpo-v1.json");
+ toast("Projeto exportado.");
 }
 async function savePNG(){
  if(!current())return;
- var markup=C.renderSVG(current(),{}),url=URL.createObjectURL(new Blob([markup],{type:"image/svg+xml"}));
+ const markup=C.renderSVG(current(),{}),url=URL.createObjectURL(new Blob([markup],{type:"image/svg+xml"}));
  try{
-  var img=new Image();await new Promise(function(resolve,reject){img.onload=resolve;img.onerror=reject;img.src=url;});
-  var canvas=document.createElement("canvas");canvas.width=C.WIDTH;canvas.height=C.HEIGHT;canvas.getContext("2d").drawImage(img,0,0);
-  if(window.desktopAPI){if(!await window.desktopAPI.saveImage(fileName(current(),"png"),canvas.toDataURL("image/png")))return;}
-  else await new Promise(function(resolve){canvas.toBlob(function(blob){download(blob,fileName(current(),"png"));resolve();},"image/png");});
-  tell("PNG transparente exportado.");
+  const img=new Image();
+  await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=url;});
+  const canvas=document.createElement("canvas");canvas.width=C.WIDTH;canvas.height=C.HEIGHT;
+  canvas.getContext("2d").drawImage(img,0,0);
+  if(window.desktopAPI){if(!await window.desktopAPI.saveImage(filename(current(),"png"),canvas.toDataURL("image/png")))return;}
+  else await new Promise(resolve=>canvas.toBlob(blob=>{download(blob,filename(current(),"png"));resolve();},"image/png"));
+  toast("PNG transparente exportado.");
  }finally{URL.revokeObjectURL(url);}
 }
 async function loadJSON(){
  try{
-  var txt;if(window.desktopAPI)txt=await window.desktopAPI.openText();
-  else txt=await new Promise(function(resolve){var input=document.createElement("input");input.type="file";input.accept=".json";input.onchange=function(){var file=input.files[0];if(file)file.text().then(resolve);else resolve(null);};input.click();});
-  if(!txt)return;var next=C.normalize(JSON.parse(txt)),prev=serialize();s.project=next;history(prev);s.slot=Math.max(0,next.slots.findIndex(Boolean));s.part="head";render();tell("Projeto importado.");
- }catch(e){tell("Erro ao importar: "+e.message);}
+  let txt;
+  if(window.desktopAPI)txt=await window.desktopAPI.openText();
+  else txt=await new Promise(resolve=>{const input=document.createElement("input");input.type="file";input.accept=".json";input.onchange=()=>{const file=input.files[0];if(file)file.text().then(resolve).catch(()=>resolve(null));else resolve(null);};input.click();});
+  if(!txt)return;
+  const next=C.normalize(JSON.parse(txt)),prev=serialize();
+  s.project=next;history(prev);s.slot=Math.max(0,next.slots.findIndex(Boolean));s.part="head";showPage("home");toast("Projeto importado.");
+ }catch(err){toast("Erro ao importar: "+err.message);}
 }
-async function action(e){
- var b=e.target.closest("[data-action],[data-slot],[data-part-select],[data-tool],[data-tab]");if(!b)return;
- if(b.hasAttribute("data-slot")){slot(Number(b.dataset.slot));return;}
+function savePose(){
+ const ch=current();if(!ch)return;
+ if(ch.savedPoses.length>=40)return toast("Limite de 40 poses neste personagem.");
+ const name=prompt("Nome da nova pose:", "Minha pose "+(ch.savedPoses.length+1));
+ if(name===null)return;
+ const clean=name.trim().slice(0,50);if(!clean)return toast("Digite um nome para a pose.");
+ edit(x=>x.savedPoses.push(C.newPoseEntry(clean,x.workingPose)));
+ toast("Pose \""+clean+"\" guardada. A prévia inicial não mudou.");
+}
+function action(e){
+ const b=e.target.closest("[data-action],[data-slot],[data-part-select],[data-tool]");if(!b)return;
+ if(b.hasAttribute("data-slot")){selectSlot(Number(b.dataset.slot));return;}
  if(b.hasAttribute("data-part-select")){s.part=b.dataset.partSelect;render();return;}
  if(b.hasAttribute("data-tool")){s.tool=b.dataset.tool;render();return;}
- if(b.hasAttribute("data-tab")){s.tab=b.dataset.tab;render();return;}
- var k=b.dataset.action;
- if(k==="undo"||k==="redo")restore(k);
- else if(k==="new"){var i=s.project.slots.findIndex(function(x){return !x;});if(i<0)tell("Os 16 slots estão ocupados.");else slot(i);}
- else if(k==="clone"){if(!current())return;var i=s.project.slots.findIndex(function(x){return !x;});if(i<0)return tell("Sem slots livres.");var prev=serialize();s.project.slots[i]=JSON.parse(JSON.stringify(current()));s.project.slots[i].id="person-"+Date.now();s.project.slots[i].name+=" (cópia)";s.slot=i;history(prev);render();tell("Personagem duplicado.");}
- else if(k==="delete"){if(!current()||!confirm("Excluir o personagem deste slot?"))return;var prev=serialize();s.project.slots[s.slot]=null;history(prev);render();tell("Slot esvaziado.");}
- else if(k==="reset-part")edit(function(ch){var p=C.BY_ID[s.part];ch.pose[s.part]={x:p.base[0],y:p.base[1],rotation:0};});
- else if(k==="reset-pose")edit(function(ch){ch.pose=C.freshPose();});
- else if(k==="mirror")edit(function(ch){ch.mirrored=!ch.mirrored;});
- else if(k.startsWith("preset:"))edit(function(ch){C.applyPreset(ch,k.slice(7));});
- else if(k==="export-json")await saveJSON();
- else if(k==="export-png")await savePNG();
- else if(k==="import-json")await loadJSON();
+ const k=b.dataset.action;
+ if(k==="undo"||k==="redo")return restore(k);
+ if(k==="open-pose"){if(current())showPage("pose");return;}
+ if(k==="back-home"){showPage("home");return;}
+ if(k==="new"){const i=s.project.slots.findIndex(v=>!v);return i===-1?toast("Os 16 slots já estão ocupados."):selectSlot(i);}
+ if(k==="clone"){
+  const i=s.project.slots.findIndex(v=>!v);if(!current()||i<0)return toast("Não há slots livres.");
+  const before=serialize(),copy=JSON.parse(JSON.stringify(current()));copy.id="person-"+Date.now();copy.name=(copy.name+" (cópia)").slice(0,60);
+  s.project.slots[i]=copy;s.slot=i;history(before);render();toast("Personagem duplicado.");return;
+ }
+ if(k==="delete"){
+  if(!current()||!confirm("Excluir este personagem? Essa ação pode ser desfeita."))return;
+  const before=serialize();s.project.slots[s.slot]=null;history(before);render();toast("Slot esvaziado.");return;
+ }
+ if(k==="mirror")return edit(ch=>{ch.mirrored=!ch.mirrored;});
+ if(k==="export-json")return saveJSON();
+ if(k==="export-png")return savePNG();
+ if(k==="import-json")return loadJSON();
+ if(k==="reset-part")return editDraft(pose=>{const part=C.BY_ID[s.part];pose[s.part]={x:part.base[0],y:part.base[1],rotation:0};});
+ if(k==="align-part")return editDraft(pose=>{const p=C.BY_ID[s.part];pose[s.part].x=p.base[0];pose[s.part].y=p.base[1];});
+ if(k==="reset-pose")return editDraft((_pose,ch)=>{ch.workingPose=C.freshPose();});
+ if(k.startsWith("nudge:")){
+  const [,dx,dy]=k.split(":").map(Number);
+  const scale=e.shiftKey?10:1;
+  return editDraft(pose=>{const p=pose[s.part];p.x=C.clamp(p.x+dx*scale,-600,600);p.y=C.clamp(p.y+dy*scale,-600,600);});
+ }
+ if(k.startsWith("preset:"))return editDraft((_pose,ch)=>{ch.workingPose=C.freshPose();C.applyPreset({pose:ch.workingPose},k.slice(7));});
+ if(k==="save-pose")return savePose();
+ if(k==="apply-pose"){
+  edit(ch=>{ch.pose=C.copyPose(ch.workingPose);});
+  showPage("home");toast("Pose aplicada! A prévia inicial foi atualizada.");return;
+ }
+ if(k.startsWith("load-saved:")){
+  const saved=current()?.savedPoses[Number(k.slice(11))];if(!saved)return;
+  edit(ch=>{ch.workingPose=C.copyPose(saved.pose);});toast("Pose carregada só no editor.");return;
+ }
+ if(k.startsWith("delete-saved:")){
+  const index=Number(k.slice(13)),ch=current();if(!ch?.savedPoses[index]||!confirm("Excluir esta pose salva?"))return;
+  edit(c=>{c.savedPoses.splice(index,1);});toast("Pose excluída.");return;
+ }
 }
 function bind(){
- document.addEventListener("click",function(e){Promise.resolve(action(e)).catch(function(err){tell("Erro: "+err.message);});});
- $("character-name").addEventListener("change",function(e){edit(function(ch){ch.name=e.target.value.trim().slice(0,60)||ch.name;});});
- $("skin-color").addEventListener("change",function(e){edit(function(ch){ch.skin=e.target.value;});});
- document.addEventListener("change",function(e){var f=e.target.dataset.poseField;if(!f||!current())return;var n=Number(e.target.value);if(!Number.isFinite(n))return;edit(function(ch){ch.pose[s.part][f]=C.clamp(n,f==="rotation"?-180:-600,f==="rotation"?180:600);});});
- var startRange=null;
- document.addEventListener("pointerdown",function(e){if(e.target.id==="rotation-slider")startRange=serialize();});document.addEventListener("focusin",function(e){if(e.target.id==="rotation-slider"&&!startRange)startRange=serialize();});
- document.addEventListener("input",function(e){if(e.target.id!=="rotation-slider"||!current())return;current().pose[s.part].rotation=Number(e.target.value);$("rotation-value").textContent=e.target.value+"°";draw();});
- document.addEventListener("change",function(e){if(e.target.id!=="rotation-slider")return;history(startRange||serialize());startRange=null;render();});
- ["joint","grid","snap"].forEach(function(name){$(name+"-toggle").addEventListener("change",function(e){s[name==="joint"?"joints":name]=e.target.checked;draw();});});
- $("zoom-range").addEventListener("input",function(e){s.zoom=Number(e.target.value);$("zoom-label").textContent=s.zoom+"%";$("editor-stage").style.setProperty("--stage-zoom",s.zoom/100);});
- document.addEventListener("keydown",function(e){if(e.target.closest("input,textarea"))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault();restore(e.shiftKey?"redo":"undo");}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="y"){e.preventDefault();restore("redo");}else if(e.key==="r"||e.key==="v"){s.tool=e.key==="r"?"rotate":"move";render();}});
+ document.addEventListener("click",e=>{Promise.resolve().then(()=>action(e)).catch(err=>toast("Erro: "+err.message));});
+ $("character-name").addEventListener("change",e=>edit(ch=>{ch.name=e.target.value.trim().slice(0,60)||ch.name;}));
+ $("skin-color").addEventListener("change",e=>edit(ch=>{ch.skin=e.target.value;}));
+ document.addEventListener("change",e=>{
+  const key=e.target.dataset.poseField;if(!key||!current())return;
+  const n=Number(e.target.value);if(!Number.isFinite(n))return toast("Valor inválido.");
+  editDraft(pose=>{pose[s.part][key]=C.clamp(n,key==="rotation"?-180:-600,key==="rotation"?180:600);});
+ });
+ document.addEventListener("pointerdown",e=>{if(e.target.id==="rotation-slider")sliderStart=serialize();});
+ document.addEventListener("focusin",e=>{if(e.target.id==="rotation-slider"&&!sliderStart)sliderStart=serialize();});
+ document.addEventListener("input",e=>{
+  if(e.target.id!=="rotation-slider"||!current())return;
+  current().workingPose[s.part].rotation=Number(e.target.value);
+  $("rotation-value").textContent=e.target.value+"°";drawStage();
+ });
+ document.addEventListener("change",e=>{
+  if(e.target.id!=="rotation-slider")return;
+  history(sliderStart||serialize());sliderStart=null;render();
+ });
+ [["joint","joints"],["grid","grid"],["snap","snap"]].forEach(([id,key])=>{
+  $(id+"-toggle").addEventListener("change",e=>{s[key]=e.target.checked;drawStage();});
+ });
+ $("zoom-range").addEventListener("input",e=>{
+  s.zoom=Number(e.target.value);$("zoom-label").textContent=s.zoom+"%";
+  $("editor-stage").style.setProperty("--stage-zoom",s.zoom/100);
+ });
+ document.addEventListener("keydown",e=>{
+  if(e.target.closest("input,textarea,[contenteditable]"))return;
+  const key=e.key.toLowerCase();
+  if((e.ctrlKey||e.metaKey)&&key==="z"){e.preventDefault();restore(e.shiftKey?"redo":"undo");return;}
+  if((e.ctrlKey||e.metaKey)&&key==="y"){e.preventDefault();restore("redo");return;}
+  if(s.page!=="pose")return;
+  if(key==="r"||key==="v"){s.tool=key==="r"?"rotate":"move";render();return;}
+  const arrows={arrowup:[0,-1],arrowdown:[0,1],arrowleft:[-1,0],arrowright:[1,0]};
+  if(arrows[key]){e.preventDefault();const [x,y]=arrows[key];const step=e.shiftKey?10:1;
+   editDraft(pose=>{pose[s.part].x=C.clamp(pose[s.part].x+x*step,-600,600);pose[s.part].y=C.clamp(pose[s.part].y+y*step,-600,600);});}
+ });
 }
 async function init(){
- var raw=null;if(window.desktopAPI)try{raw=await window.desktopAPI.loadAutosave();}catch(e){}
- if(!raw)try{raw=localStorage.getItem("gacha-v4-body-project");}catch(e){}
- if(raw)try{s.project=C.normalize(JSON.parse(raw));}catch(e){console.warn(e);}
- bind();render();
+ let saved=null;
+ if(window.desktopAPI)try{saved=await window.desktopAPI.loadAutosave();}catch(err){console.warn(err);}
+ if(!saved)try{saved=localStorage.getItem("gacha-v4-body-project");}catch(err){}
+ if(saved)try{s.project=C.normalize(JSON.parse(saved));}catch(err){console.warn("Salvamento inválido",err);}
+ bind();showPage("home");
 }
-window.GachaEditor={state:s,current:current,draw:draw,render:render,serialize:serialize,history:history};
+window.GachaEditor={state:s,current,editing,draw:drawStage,render,serialize,history};
 document.addEventListener("DOMContentLoaded",init);
 })();

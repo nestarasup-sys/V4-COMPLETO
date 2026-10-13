@@ -7,8 +7,9 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.cjs",
-    "check": "node --check src/core.js && node --check src/renderer.js && node --check electron/main.cjs && node --check electron/preload.cjs",
-    "dist": "electron-builder"
+    "check": "node --check src/core.js && node --check src/renderer.js && node --check src/drag.js && node --check electron/main.cjs && node --check electron/preload.cjs",
+    "dist": "electron-builder",
+    "ui-test": "electron test/ui-smoke.cjs"
   },
   "devDependencies": {
     "electron": "^37.0.0",

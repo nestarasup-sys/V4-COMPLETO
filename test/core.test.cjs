@@ -30,3 +30,29 @@ test("renderer supports editor and 9:16 preview",()=>{
  assert.ok(core.renderSVG(ch,{editor:true,joints:true}).includes("rig-joint"));
  assert.ok(core.renderSVG(ch,{}).includes("viewBox"));
 });
+
+
+test("edits to working pose do not change the published pose",()=>{
+ const ch=core.makeCharacter(0);
+ ch.workingPose.armLU.x=99;
+ assert.notEqual(ch.workingPose.armLU.x,ch.pose.armLU.x);
+ const restored=core.normalize({format:"gacha-body-v1",version:1,slots:[ch,...Array(15).fill(null)]});
+ assert.equal(restored.slots[0].workingPose.armLU.x,99);
+ assert.equal(restored.slots[0].pose.armLU.x,ch.pose.armLU.x);
+});
+test("old character projects migrate to independent working pose",()=>{
+ const project=core.freshProject();
+ delete project.slots[0].workingPose;delete project.slots[0].savedPoses;
+ const migrated=core.normalize(project).slots[0];
+ assert.deepEqual(migrated.workingPose,migrated.pose);
+ assert.deepEqual(migrated.savedPoses,[]);
+});
+test("pose presets save, reload and apply explicitly",()=>{
+ const ch=core.makeCharacter(0);
+ core.applyPreset({pose:ch.workingPose},"aceno");
+ const saved=core.newPoseEntry("Meu aceno",ch.workingPose);
+ ch.savedPoses.push(saved);
+ assert.equal(ch.pose.armRU.rotation,0);
+ ch.pose=core.copyPose(saved.pose);
+ assert.equal(ch.pose.armRU.rotation,-55);
+});

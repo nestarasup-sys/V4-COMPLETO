@@ -41,10 +41,12 @@
   function freshPose(){
     var pose={};PARTS.forEach(function(p){pose[p.id]={x:p.base[0],y:p.base[1],rotation:0};});return pose;
   }
+  function copyPose(pose){return JSON.parse(JSON.stringify(pose));}
+  function newPoseEntry(name,pose){return {id:"pose-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:String(name).slice(0,50),pose:copyPose(pose)};}
   function makeCharacter(index){
     return {id:"person-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),
       name:"Personagem "+String(index+1).padStart(2,"0"),skin:"#f9eadd",
-      pose:freshPose(), mirrored:false};
+      pose:freshPose(), workingPose:freshPose(), savedPoses:[], mirrored:false};
   }
   function freshProject(){
     var slots=Array(SLOT_COUNT).fill(null);slots[0]=makeCharacter(0);
@@ -57,10 +59,18 @@
       var q=input[piece.id]||{};
       p[piece.id]={x:sane(q.x,-600,600,p[piece.id].x),y:sane(q.y,-600,600,p[piece.id].y),rotation:sane(q.rotation,-180,180,0)};
     });
+    var work={pose:input};
+    if(obj.workingPose && typeof obj.workingPose==="object") work.pose=obj.workingPose;
+    var w=freshPose();PARTS.forEach(function(piece){var q=work.pose[piece.id]||{};w[piece.id]={x:sane(q.x,-600,600,p[piece.id].x),y:sane(q.y,-600,600,p[piece.id].y),rotation:sane(q.rotation,-180,180,p[piece.id].rotation)};});
+    var entries=Array.isArray(obj.savedPoses)?obj.savedPoses.slice(0,40):[];
+    var savedPoses=entries.filter(function(v){return v&&typeof v==="object"&&v.pose;}).map(function(v,i){
+      var po=freshPose();PARTS.forEach(function(part){var q=v.pose[part.id]||{};po[part.id]={x:sane(q.x,-600,600,part.base[0]),y:sane(q.y,-600,600,part.base[1]),rotation:sane(q.rotation,-180,180,0)};});
+      return {id:String(v.id||("saved-"+i)).slice(0,80),name:String(v.name||("Pose "+(i+1))).slice(0,50),pose:po};
+    });
     var color=typeof obj.skin==="string"&&/^#[0-9a-f]{6}$/i.test(obj.skin)?obj.skin:"#f9eadd";
     return {id:String(obj.id||("slot-"+index)).slice(0,100),
       name:String(obj.name||("Personagem "+(index+1))).slice(0,60),
-      skin:color,pose:p,mirrored:!!obj.mirrored};
+      skin:color,pose:p,workingPose:w,savedPoses:savedPoses,mirrored:!!obj.mirrored};
   }
   function normalize(raw){
     if(!raw||raw.format!=="gacha-body-v1"||raw.version!==1||!Array.isArray(raw.slots)||raw.slots.length!==SLOT_COUNT)
@@ -118,7 +128,7 @@
   }
   var api={WIDTH:WIDTH,HEIGHT:HEIGHT,SLOT_COUNT:SLOT_COUNT,PARTS:PARTS,BY_ID:BY_ID,PRESETS:PRESETS,
     DRAW_ORDER:DRAW_ORDER,PATHS:PATHS,makeCharacter:makeCharacter,freshProject:freshProject,
-    freshPose:freshPose,normalize:normalize,renderSVG:renderSVG,applyPreset:applyPreset,
+    freshPose:freshPose,copyPose:copyPose,newPoseEntry:newPoseEntry,normalize:normalize,renderSVG:renderSVG,applyPreset:applyPreset,
     transforms:transforms,point:point,mul:mul,rotation:rotation,tr:tr,esc:esc,clamp:clamp};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   root.GachaCore=api;

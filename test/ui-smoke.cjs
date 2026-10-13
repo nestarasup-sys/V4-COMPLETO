@@ -1,0 +1,44 @@
+"use strict";
+const {app,BrowserWindow}=require("electron");
+const fs=require("node:fs/promises");
+const path=require("node:path");
+const assert=require("node:assert/strict");
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function check(){
+ const win=new BrowserWindow({width:1366,height:768,show:true,backgroundColor:"#101624",webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
+ try{
+  await win.loadFile(path.join(__dirname,"..","index.html"));
+  await sleep(400);
+  const run=code=>win.webContents.executeJavaScript(code,true);
+  const loaded=await run('({page:window.GachaEditor.state.page,slots:document.querySelectorAll("[data-slot]").length,preview:!!document.querySelector("#phone-preview svg"),homeVisible:!document.querySelector("#page-home").hidden})');
+  assert.equal(loaded.page,"home");assert.equal(loaded.slots,16);assert.equal(loaded.preview,true);assert.equal(loaded.homeVisible,true);
+  const dimensions=await run('(function(){const r=document.querySelector(".phone-shell").getBoundingClientRect();return {w:r.width,h:r.height};})()');
+  assert.ok(Math.abs(dimensions.w/dimensions.h-9/16)<.025,"Prévia vertical deve manter 9:16");
+  const dir=path.join(__dirname,"..","artifacts");await fs.mkdir(dir,{recursive:true});
+  await fs.writeFile(path.join(dir,"ui-home-1366.png"),(await win.webContents.capturePage()).toPNG());
+  const initial=await run('window.GachaEditor.current().pose.head.x');
+  await run('document.querySelector("[data-action=open-pose]").click()');
+  const studio=await run('({visible:!document.querySelector("#page-pose").hidden,hidden:document.querySelector("#page-home").hidden,tool:window.GachaEditor.state.tool})');
+  assert.equal(studio.visible,true);assert.equal(studio.hidden,true);assert.equal(studio.tool,"move");
+  await run('document.querySelector("[data-action=\\"nudge:1:0\\"]").click()');
+  const poses=await run('({official:window.GachaEditor.current().pose.head.x,draft:window.GachaEditor.current().workingPose.head.x})');
+  assert.equal(poses.official,initial,"Rascunho não pode alterar a pose oficial");
+  assert.equal(poses.draft,initial+1,"Encaixe fino deve mover a peça");
+  await fs.writeFile(path.join(dir,"ui-pose-1366.png"),(await win.webContents.capturePage()).toPNG());
+  await run('document.querySelector("[data-action=back-home]").click()');
+  assert.equal(await run('window.GachaEditor.current().pose.head.x'),initial);
+  await run('document.querySelector("[data-action=open-pose]").click()');
+  assert.equal(await run('window.GachaEditor.current().workingPose.head.x'),initial+1,"Rascunho deve persistir");
+  await run('document.querySelector("[data-action=apply-pose]").click()');
+  assert.equal(await run('window.GachaEditor.current().pose.head.x'),initial+1,"Aplicar atualiza a pose oficial");
+  assert.equal(await run('window.GachaEditor.state.page'),"home");
+  await run('document.querySelector("[data-action=undo]").click()');
+  assert.equal(await run('window.GachaEditor.current().pose.head.x'),initial,"Undo da aplicação");
+  await run('document.querySelector("[data-action=redo]").click()');
+  assert.equal(await run('window.GachaEditor.current().pose.head.x'),initial+1,"Redo da aplicação");
+  win.setSize(1920,1080);await sleep(300);
+  await fs.writeFile(path.join(dir,"ui-home-1920.png"),(await win.webContents.capturePage()).toPNG());
+  console.log("UI smoke OK: slots, 9:16, pose separated, editing, application, undo/redo, screenshots");
+ }finally{win.destroy();}
+}
+app.whenReady().then(()=>check().then(()=>app.quit()).catch(err=>{console.error(err);process.exitCode=1;app.quit();}));

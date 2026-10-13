@@ -28,3 +28,11 @@ Modo navegador (sem Electron): abra `index.html` em um navegador moderno; o esta
 **Importante:** projeto de criação de personagens separado do Gacha Editor V4 de timelines. Exporta seu formato editável `gacha-body-v1`; compatibilidade com `schema_version: 3` e `character_tracks` do editor de vídeo é uma etapa futura descrita no AGENTS.md.
 
 Os contornos SVG foram derivados da imagem-base fornecida pelo autor. Não estão incluídos cabelo, rosto ou roupas por enquanto.
+
+## Nova experiência de edição (rodada UX)
+
+**Personagens** é a tela inicial: 16 slots e uma prévia 9:16 da pose oficialmente aplicada. Clique no cartão **Corpo / Pose** para entrar em um estúdio separado. Modificações do rascunho **não alteram a prévia inicial**; clique em **Aplicar ao personagem** para publicar a pose. Você pode voltar sem aplicar; seu rascunho continua salvo para editar depois.
+
+No estúdio, o modo padrão é **Mover** (atalho `V`): arraste uma peça diretamente. `R` ativa **Girar**. Para encaixar, use as setas de **1 pixel**, Shift+seta para **10 pixels**, ou os campos X/Y; **Encaixar** volta a posição da peça ao seu ponto padrão sem desfazer a rotação. Os cinco presets alteram apenas o rascunho. **Guardar pose** cria uma opção na biblioteca pessoal e **Editar** carrega essa pose no estúdio, sem aplicar à prévia.
+
+A versão de projeto continua `gacha-body-v1`: `pose` é a pose aplicada, `workingPose` é o rascunho independente e `savedPoses` é a biblioteca por personagem. Projetos antigos sem esses campos são migrados no carregamento. A prévia e a exportação PNG utilizam `pose`, não `workingPose`.
