@@ -1,0 +1,40 @@
+{
+  "name": "gacha-v4-completo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Criador chibi Corpo/Pose com Electron",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.cjs",
+    "check": "node --check src/core.js && node --check src/renderer.js && node --check electron/main.cjs && node --check electron/preload.cjs",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^37.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.gachav4.bodyeditor",
+    "productName": "Gacha V4 Corpo & Pose",
+    "files": [
+      "index.html",
+      "styles.css",
+      "src/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    },
+    "mac": {
+      "target": "dmg"
+    }
+  }
+}

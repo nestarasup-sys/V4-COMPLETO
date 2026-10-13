@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'">
+<title>Gacha V4 • Corpo & Pose</title><link rel="stylesheet" href="styles.css">
+<script src="src/core.js" defer></script><script src="src/renderer.js" defer></script><script src="src/drag.js" defer></script></head>
+<body>
+<header class="topbar"><div class="brand"><div class="brand-mark">✦</div><div><strong>GACHA <em>V4</em></strong><small>BODY STUDIO • ALPHA</small></div></div>
+<div class="breadcrumbs"><span>Editor de personagem</span><b>/</b><strong>Corpo & Pose</strong></div>
+<div class="global-actions"><button id="undo-btn" data-action="undo" title="Desfazer (Ctrl+Z)">↶ <span>Desfazer</span></button><button id="redo-btn" data-action="redo" title="Refazer (Ctrl+Y)">↷ <span>Refazer</span></button><button class="primary" data-action="export-json">↥ <span>Salvar projeto</span></button></div></header>
+<main class="workspace">
+<aside class="slots-panel panel"><div class="panel-title"><div><small>BIBLIOTECA</small><h2>Personagens</h2></div><span class="count" id="slot-count">1 / 16</span></div>
+<div class="slots-scroll"><div class="slot-grid" id="slot-grid"></div></div>
+<div class="slot-footer"><button class="secondary" data-action="new">＋ Novo slot</button><button class="ghost requires-character" data-action="clone">⧉ Duplicar</button></div></aside>
+<section class="preview-panel panel"><div class="panel-title"><div><small>PRÉ-VISUALIZAÇÃO</small><h2>Personagem</h2></div><span class="live-badge"><span></span> AO VIVO</span></div>
+<div class="phone-wrap"><div class="phone"><div class="phone-notch"></div><div class="phone-content" id="phone-preview"></div><div class="phone-bottom"></div></div></div>
+<div class="preview-info"><div><small id="slot-position">Slot 01</small><strong id="slot-title">Personagem 01</strong></div><button class="icon-button requires-character" data-action="mirror" title="Espelhar visual">⇆</button></div>
+<div class="preview-actions"><button class="secondary requires-character" data-action="export-png">↓ PNG transparente</button><button class="ghost" data-action="export-json">↓ JSON</button></div>
+</section>
+<section class="editor-panel panel"><nav class="tabs"><button data-tab="body" class="active">◉ Corpo / Pose</button><button data-tab="project">▤ Projeto</button></nav>
+<div id="panel-body" class="body-tab"><div class="editor-header"><div><small>ARTICULAÇÃO 2D</small><h2>Monte seu corpo</h2><p>Arraste as peças para criar poses únicas.</p></div><div class="tool-switch"><button class="active" data-tool="rotate" title="Girar peça (R)">⤾ Girar</button><button data-tool="move" title="Mover peça (V)">✥ Mover</button></div></div>
+<div class="editor-grid"><div class="canvas-side"><div class="canvas-header"><span>CANVAS • 1122 × 1402</span><span id="zoom-label">100%</span></div><div class="canvas-shell"><div class="editor-stage" id="editor-stage"></div></div>
+<div class="canvas-options"><label><input id="joint-toggle" type="checkbox" checked> <span>Juntas</span></label><label><input id="grid-toggle" type="checkbox"> <span>Grade</span></label><label><input id="snap-toggle" type="checkbox"> <span>Snap</span></label></div>
+<div class="zoom-control"><span>Zoom</span><input id="zoom-range" type="range" min="70" max="145" value="100" step="5"><span>145%</span></div>
+<div class="pose-presets"><div class="caption">POSES RÁPIDAS</div><div class="preset-buttons"><button data-action="preset:neutra">Neutra</button><button data-action="preset:aceno">Aceno</button><button data-action="preset:corrida">Corrida</button><button data-action="preset:sentada">Sentada</button><button data-action="preset:danca">Dança</button></div></div></div>
+<aside class="properties"><div class="section-label">PEÇAS DO CORPO <span>10</span></div><div id="part-list" class="part-list"></div><div id="part-tools" class="part-tools"></div></aside></div></div>
+<div id="panel-project" class="project-tab" hidden><div class="editor-header"><div><small>ARQUIVO DO PERSONAGEM</small><h2>Projeto & aparência</h2><p>Organize os slots e guarde seu trabalho.</p></div></div>
+<div class="project-form"><label>Nome do personagem<input id="character-name" type="text" maxlength="60" placeholder="Nome do personagem"></label>
+<label>Tom de pele<input id="skin-color" type="color" value="#f9eadd"></label>
+<div class="project-actions"><button class="secondary" data-action="import-json">↓ Importar projeto JSON</button><button class="secondary" data-action="export-json">↑ Exportar JSON</button><button class="secondary requires-character" data-action="export-png">↓ Exportar PNG</button><button class="ghost danger requires-character" data-action="delete">Excluir personagem</button></div>
+<p class="hint">O salvamento automático mantém até 16 personagens. Os arquivos .json são editáveis neste app.</p></div></div>
+<div class="bottom-bar"><span id="empty-slot-message" hidden>Nenhum personagem neste slot.</span><span><i class="indicator"></i> Auto-salvamento ativo</span><button data-action="reset-pose" class="ghost requires-character">↺ Restaurar pose</button></div>
+</section></main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body></html>
