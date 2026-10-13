@@ -1,5 +1,17 @@
 # AGENTS.md — continuidade para o Codex
 
+## Decisões obrigatórias da rodada UX (feedback do autor)
+Estas decisões têm precedência sobre a descrição inicial do MVP e **não devem ser revertidas**:
+- Existem duas **páginas**, não só uma aba na tela inicial: `#page-home` tem 16 slots + preview oficial; o cartão/botão **Corpo / Pose** abre `#page-pose`, um estúdio separado.
+- `character.pose` é a pose oficial, exibida na tela inicial, nas miniaturas e no PNG exportado; `character.workingPose` é o rascunho editável exibido **somente** dentro do estúdio. Nunca modificar `pose` em gestos, presets ou ajustes de peças; apenas **Aplicar ao personagem** copia `workingPose` para `pose`.
+- `savedPoses` por personagem é uma biblioteca de poses; carregar uma pose apenas modifica `workingPose`, sem aplicação automática.
+- Padrão do estúdio é ferramenta **Mover**. Arraste direto em qualquer peça; **Girar** (`R`), Mover (`V`), teclado/setas com 1px e Shift+seta 10px, inputs numéricos e **Encaixar** devem continuar funcionando.
+- Prévia inicial deve manter o celular **9:16 sem deformação**, com personagem grande e espaço suficiente; alterações do estúdio não podem mudar esse preview até a aplicação explícita.
+- O layout foi redesenhado para leitura/clareza: telas inicial e estúdio independentes, botões com ações reais e estados óbvios.
+- `test/ui-smoke.cjs` testa Electron com Xvfb no GitHub Actions, incluindo transição entre páginas, pose isolada, arraste direto, undo/redo, preview 9:16 e screenshots; mantenha esta cobertura.
+- Atenção: o corpo ainda é composto de peças separadas por estilo; melhorias futuras em juntas e anatomia devem preservar a liberdade de manipulação peça a peça.
+
+
 ## Missão
 Evoluir este repositório de **editor de corpo e poses chibi** para um criador de personagens Gacha próprio, com qualidade para uso diário. O MVP inicial já existe. **Não substitua a UI por uma landing page nem descarte o rig.** Trabalhe incrementalmente e rode os testes antes de finalizar.
 
