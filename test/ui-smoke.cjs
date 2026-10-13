@@ -51,6 +51,14 @@ async function check(){
   await run('document.querySelector("[data-action=open-pose]").click()');
   const studio=await run('({visible:!document.querySelector("#page-pose").hidden,hidden:document.querySelector("#page-home").hidden,tool:window.GachaEditor.state.tool})');
   assert.equal(studio.visible,true);assert.equal(studio.hidden,true);assert.equal(studio.tool,"move");
+  assert.equal(await run('document.querySelectorAll("#layer-list .layer-row").length'),10,"O painel de camadas lista todas as peças");
+  const layerChange=await run('document.querySelector("[data-action=\\"layer-front:torso\\"]").click();({front:window.GachaEditor.current().layerOrder.indexOf("torso"),head:window.GachaEditor.current().layerOrder.indexOf("head")})');
+  assert.ok(layerChange.front>layerChange.head,"Trazer camada à frente altera a ordem de desenho");
+  await run('document.querySelector("[data-action=\\"layer-back:torso\\"]").click()');
+  await run('document.querySelector("[data-action=\\"toggle-layer:head\\"]").click()');
+  assert.equal(await run('window.GachaEditor.current().hiddenParts.includes("head")'),true,"Controle de visibilidade oculta uma camada");
+  assert.equal(await run('window.GachaCore.renderSVG(window.GachaEditor.current()).includes(\'<g data-part="head" transform\')'),false,"Peça oculta sai da composição renderizada");
+  await run('document.querySelector("[data-action=\\"toggle-layer:head\\"]").click()');
   await run('document.querySelector("[data-action=\\"nudge:1:0\\"]").click()');
   const poses=await run('({official:window.GachaEditor.current().pose.head.x,draft:window.GachaEditor.current().workingPose.head.x})');
   assert.equal(poses.official,initial,"Rascunho não pode alterar a pose oficial");

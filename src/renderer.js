@@ -89,6 +89,17 @@ function renderSaved(){
   '<div class="saved-item"><div class="saved-pose-main"><span class="saved-thumb">'+C.renderSVG({...ch,pose:entry.pose},{preview:true})+'</span><span class="saved-name" title="'+C.esc(entry.name)+'">'+C.esc(entry.name)+'</span></div><div class="saved-pose-actions"><button data-action="load-saved:'+i+'" title="Carregar no editor sem aplicar">Editar</button><button data-action="duplicate-saved:'+i+'" aria-label="Duplicar '+C.esc(entry.name)+'" title="Duplicar">⧉</button><button data-action="rename-saved:'+i+'" aria-label="Renomear '+C.esc(entry.name)+'" title="Renomear">✎</button><button data-action="copy-saved:'+i+'" aria-label="Copiar '+C.esc(entry.name)+' para outro personagem" title="Copiar para outro personagem">↗</button><button data-action="export-saved:'+i+'" aria-label="Exportar '+C.esc(entry.name)+'" title="Exportar">⇩</button><button data-action="delete-saved:'+i+'" aria-label="Excluir '+C.esc(entry.name)+'" title="Excluir">×</button></div></div>'
  ).join(""):'<p class="empty-saved">Nenhuma pose salva ainda. Monte sua primeira pose e clique em Guardar.</p>';
 }
+function renderLayers(){
+ const ch=current();
+ if(!ch){$("layer-list").innerHTML='<p class="empty-layers">Selecione um personagem para editar as camadas.</p>';return;}
+ const hidden=new Set(ch.hiddenParts||[]),frontToBack=ch.layerOrder.slice().reverse();
+ $("layer-list").innerHTML=frontToBack.map((id,index)=>{
+  const part=C.BY_ID[id],visible=!hidden.has(id);
+  return '<div class="layer-row '+(s.part===id?"selected":"")+'">'+
+   '<button type="button" class="layer-select" data-layer-select="'+id+'" title="Selecionar '+C.esc(part.name)+'"><span class="layer-grip">⠿</span><span class="layer-name">'+C.esc(part.name)+'</span></button>'+
+   '<div class="layer-actions"><button type="button" data-action="layer-front:'+id+'" aria-label="Trazer '+C.esc(part.name)+' para frente" title="Trazer para frente" '+(index===0?"disabled":"")+'>↑</button><button type="button" data-action="layer-back:'+id+'" aria-label="Enviar '+C.esc(part.name)+' para trás" title="Enviar para trás" '+(index===frontToBack.length-1?"disabled":"")+'>↓</button><button type="button" class="layer-visibility '+(visible?"visible":"hidden")+'" data-action="toggle-layer:'+id+'" aria-label="'+(visible?"Ocultar ":"Mostrar ")+C.esc(part.name)+'" aria-pressed="'+visible+'" title="'+(visible?"Ocultar":"Mostrar")+'">'+(visible?"◉":"○")+'</button></div></div>';
+ }).join("");
+}
 function registerPoseSlot(entry){
  const slots=s.project.poseSlots;
  const existing=slots.find(slot=>slot&&slot.id===entry.id);
@@ -115,7 +126,7 @@ function render(){
  $("slot-position").textContent="SLOT "+String(s.slot+1).padStart(2,"0");
  $("pose-person-name").textContent=ch?ch.name:"Sem personagem";
  if(ch){$("character-name").value=ch.name;$("skin-color").value=ch.skin;}
- draw();renderInspector();renderSaved();
+ draw();renderInspector();renderLayers();renderSaved();
  $("undo-btn").disabled=s.undo.length===0;$("redo-btn").disabled=s.redo.length===0;
  document.querySelectorAll(".requires-character").forEach(b=>b.disabled=!ch);
  document.querySelectorAll("[data-tool]").forEach(b=>b.classList.toggle("active",b.dataset.tool===s.tool));
@@ -197,9 +208,10 @@ async function exportPose(entry){
  toast("Pose exportada.");
 }
 async function action(e){
- const b=e.target.closest("[data-action],[data-slot],[data-part-select],[data-tool]");if(!b)return;
+ const b=e.target.closest("[data-action],[data-slot],[data-part-select],[data-layer-select],[data-tool]");if(!b)return;
  if(b.hasAttribute("data-slot")){selectSlot(Number(b.dataset.slot));return;}
  if(b.hasAttribute("data-part-select")){s.part=b.dataset.partSelect;render();return;}
+ if(b.hasAttribute("data-layer-select")){s.part=b.dataset.layerSelect;render();return;}
  if(b.hasAttribute("data-tool")){s.tool=b.dataset.tool;render();return;}
  const k=b.dataset.action;
  if(k==="undo"||k==="redo")return restore(k);
@@ -209,6 +221,13 @@ async function action(e){
  if(k.startsWith("apply-home-pose:")){
   const entry=s.project.poseSlots[Number(k.slice(16))];if(!entry||!current())return;
   edit(ch=>{ch.pose=C.copyPose(entry.pose);ch.workingPose=C.copyPose(entry.pose);});toast("Pose aplicada ao personagem.");return;
+ }
+ if(k.startsWith("layer-front:")||k.startsWith("layer-back:")){
+  const id=k.slice(k.indexOf(":")+1),step=k.startsWith("layer-front:")?1:-1;
+  edit(ch=>{const index=ch.layerOrder.indexOf(id),next=index+step;if(index<0||next<0||next>=ch.layerOrder.length)return;[ch.layerOrder[index],ch.layerOrder[next]]=[ch.layerOrder[next],ch.layerOrder[index]];});return;
+ }
+ if(k.startsWith("toggle-layer:")){
+  const id=k.slice(13);edit(ch=>{const index=ch.hiddenParts.indexOf(id);if(index>=0)ch.hiddenParts.splice(index,1);else ch.hiddenParts.push(id);});return;
  }
  if(k==="clone"){
   const i=s.project.slots.findIndex(v=>!v);if(!current()||i<0)return toast("Não há slots livres.");

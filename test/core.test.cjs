@@ -22,6 +22,17 @@ test("all ten body pieces with parent joints",()=>{
  const ch=core.makeCharacter(0);assert.equal(core.PARTS.length,10);assert.equal(Object.keys(ch.pose).length,10);
  const matrix=core.transforms(ch);assert.equal(Object.keys(matrix).length,10);
 });
+test("layer order and visibility are normalized and control body rendering",()=>{
+ const project=core.freshProject(),character=project.slots[0];
+ character.layerOrder=["head","torso","head","unknown"];
+ character.hiddenParts=["head","unknown","head"];
+ const restored=core.normalize(project).slots[0];
+ assert.equal(restored.layerOrder.length,10);assert.equal(new Set(restored.layerOrder).size,10);
+ assert.equal(restored.layerOrder[0],"head");assert.deepEqual(restored.hiddenParts,["head"]);
+ const svg=core.renderSVG(restored,{editor:true,joints:true});
+ assert.equal(svg.includes('<g data-part="head" transform'),false,"camada oculta não desenha cabeça nem alça de junta");
+ assert.ok(svg.indexOf('<g data-part="torso" transform')<svg.indexOf('<g data-part="armLU" transform'),"ordem customizada controla a sequência de desenho");
+});
 test("hierarchical joint anchors stay connected through parent and child rotation",()=>{
  const ch=core.makeCharacter(0);
  for(const preset of Object.keys(core.PRESETS)){

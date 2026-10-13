@@ -58,7 +58,8 @@
     var pose=initialPose?normalizePose(initialPose.pose):freshPose();
     return {id:"person-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),
       name:"Personagem "+String(index+1).padStart(2,"0"),skin:"#f9eadd",
-      pose:copyPose(pose), workingPose:copyPose(pose), savedPoses:[], mirrored:false};
+      pose:copyPose(pose), workingPose:copyPose(pose), savedPoses:[], mirrored:false,
+      layerOrder:DRAW_ORDER.slice(),hiddenParts:[]};
   }
   function freshProject(){
     var slots=Array(SLOT_COUNT).fill(null);slots[0]=makeCharacter(0);
@@ -80,9 +81,14 @@
       return {id:String(v.id||("saved-"+i)).slice(0,80),name:String(v.name||("Pose "+(i+1))).slice(0,50),pose:po};
     });
     var color=typeof obj.skin==="string"&&/^#[0-9a-f]{6}$/i.test(obj.skin)?obj.skin:"#f9eadd";
+    var layerOrder=[],seenLayers={};
+    (Array.isArray(obj.layerOrder)?obj.layerOrder:[]).forEach(function(id){if(BY_ID[id]&&!seenLayers[id]){seenLayers[id]=true;layerOrder.push(id);}});
+    DRAW_ORDER.forEach(function(id){if(!seenLayers[id]){seenLayers[id]=true;layerOrder.push(id);}});
+    var hiddenParts=Array.isArray(obj.hiddenParts)?Array.from(new Set(obj.hiddenParts.filter(function(id){return !!BY_ID[id];}))):[];
     return {id:String(obj.id||("slot-"+index)).slice(0,100),
       name:String(obj.name||("Personagem "+(index+1))).slice(0,60),
-      skin:color,pose:p,workingPose:w,savedPoses:savedPoses,mirrored:!!obj.mirrored};
+      skin:color,pose:p,workingPose:w,savedPoses:savedPoses,mirrored:!!obj.mirrored,
+      layerOrder:layerOrder,hiddenParts:hiddenParts};
   }
   function normalize(raw){
     if(!raw||raw.format!=="gacha-body-v1"||raw.version!==1||!Array.isArray(raw.slots)||raw.slots.length!==SLOT_COUNT)
@@ -139,14 +145,18 @@
       svg+='<defs><pattern id="grid" width="56" height="56" patternUnits="userSpaceOnUse"><path d="M56 0H0V56" fill="none" stroke="#bcb5d8" stroke-opacity=".24" stroke-width="2"/></pattern></defs><rect width="1122" height="1402" fill="url(#grid)"/>';
     }
     svg+='<g transform="'+rootTransform+'">';
-    DRAW_ORDER.forEach(function(id){
+    var order=Array.isArray(character.layerOrder)?character.layerOrder:DRAW_ORDER;
+    var hidden=Array.isArray(character.hiddenParts)?character.hiddenParts:[];
+    order.forEach(function(id){
+      if(!BY_ID[id]||hidden.indexOf(id)>=0)return;
       var matrix=m[id].map(function(v){return +v.toFixed(5);}).join(" ");
       svg+='<g data-part="'+id+'" transform="matrix('+matrix+')"><path data-part="'+id+'" d="'+PATHS[id]+'" fill="'+character.skin+'" stroke="#793936" stroke-width="4.5" stroke-linejoin="round"/><path data-part="'+id+'" d="'+PATHS[id]+'" fill="url(#skinShade)" pointer-events="none"/></g>';
     });
     // O detalhe da orelha pertence à cabeça e acompanha seu rig.
-    svg+='<g transform="matrix('+m.head.map(function(v){return +v.toFixed(5);}).join(" ")+')"><path d="M415 230 Q431 222 432 246 Q434 260 425 256" stroke="#793936" stroke-width="4" fill="none" pointer-events="none"/></g>';
+    if(hidden.indexOf("head")<0)svg+='<g transform="matrix('+m.head.map(function(v){return +v.toFixed(5);}).join(" ")+')"><path d="M415 230 Q431 222 432 246 Q434 260 425 256" stroke="#793936" stroke-width="4" fill="none" pointer-events="none"/></g>';
     if(editor&&options.joints){
       PARTS.forEach(function(p){
+        if(hidden.indexOf(p.id)>=0)return;
         var pos=point(m[p.id],p.joint?p.joint.child:p.pivot);
         svg+='<g data-part="'+p.id+'" class="rig-joint"><circle data-part="'+p.id+'" cx="'+pos[0]+'" cy="'+pos[1]+'" r="'+(p.id===options.selected?17:12)+'" fill="'+(p.id===options.selected?"#ffcf7b":"#bcafff")+'" stroke="#362c59" stroke-width="5"/><circle cx="'+pos[0]+'" cy="'+pos[1]+'" r="3.8" fill="#272040" pointer-events="none"/></g>';
       });
