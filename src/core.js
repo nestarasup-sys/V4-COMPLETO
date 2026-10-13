@@ -44,21 +44,37 @@
     return pose;
   }
   function copyPose(pose){return JSON.parse(JSON.stringify(pose));}
+  function normalizeLayerOrder(value){
+    var result=[],seen={};(Array.isArray(value)?value:[]).forEach(function(id){if(BY_ID[id]&&!seen[id]){seen[id]=true;result.push(id);}});
+    DRAW_ORDER.forEach(function(id){if(!seen[id]){seen[id]=true;result.push(id);}});return result;
+  }
+  function normalizeHiddenParts(value){return Array.isArray(value)?Array.from(new Set(value.filter(function(id){return !!BY_ID[id];}))):[];}
+  function normalizeGarment(value){
+    if(!value||typeof value!=="object")return null;
+    return {index:Math.round(sane(value.index,0,7,0)),x:Math.round(sane(value.x,-160,160,0)),y:Math.round(sane(value.y,-160,160,0)),
+      scale:Math.round(sane(value.scale,35,200,100)),rotation:Math.round(sane(value.rotation,-90,90,0))};
+  }
+  function normalizeWardrobe(value){value=value&&typeof value==="object"?value:{};return {top:normalizeGarment(value.top),sleeves:normalizeGarment(value.sleeves)};}
+  function poseSnapshot(value,name){
+    return {id:String(value.id||"pose-snapshot"),name:String(value.name||name||"Pose padrão").slice(0,50),pose:normalizePose(value.pose),
+      layerOrder:normalizeLayerOrder(value.layerOrder),hiddenParts:normalizeHiddenParts(value.hiddenParts),sourceSlot:Number.isInteger(value.sourceSlot)?value.sourceSlot:null};
+  }
   function isLegacyRest(pose){
     return !!pose&&PARTS.every(function(part){var value=pose[part.id]||{},base=LEGACY_REST[part.id]||[0,0];
       return Number(value.x||0)===base[0]&&Number(value.y||0)===base[1]&&Number(value.rotation||0)===0;});
   }
-  function newPoseEntry(name,pose){return {id:"pose-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:String(name).slice(0,50),pose:copyPose(pose)};}
+  function newPoseEntry(name,pose,character){return {id:"pose-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:String(name).slice(0,50),pose:copyPose(pose),
+    layerOrder:normalizeLayerOrder(character&&character.layerOrder),hiddenParts:normalizeHiddenParts(character&&character.hiddenParts)};}
   function makeCharacter(index,initialPose){
     var pose=initialPose?normalizePose(initialPose.pose):freshPose();
     return {id:"person-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),
       name:"Personagem "+String(index+1).padStart(2,"0"),skin:"#f9eadd",
       pose:copyPose(pose), workingPose:copyPose(pose), savedPoses:[], mirrored:false,
-      layerOrder:DRAW_ORDER.slice(),hiddenParts:[]};
+      layerOrder:normalizeLayerOrder(initialPose&&initialPose.layerOrder),hiddenParts:normalizeHiddenParts(initialPose&&initialPose.hiddenParts),wardrobe:{top:null,sleeves:null}};
   }
   function freshProject(){
     var slots=Array(SLOT_COUNT).fill(null);slots[0]=makeCharacter(0);
-    return {format:"gacha-body-v1",version:1,poseSlots:Array(POSE_SLOT_COUNT).fill(null),slots:slots};
+    return {format:"gacha-body-v1",version:1,poseSlots:Array(POSE_SLOT_COUNT).fill(null),slots:slots,defaultPose:null};
   }
   function safeCharacter(obj,index){
     if(!obj||typeof obj!=="object")return null;
@@ -72,20 +88,18 @@
     if(obj.workingPose && typeof obj.workingPose==="object") work.pose=obj.workingPose;
     var w=freshPose();PARTS.forEach(function(piece){var q=work.pose[piece.id]||{};w[piece.id]={x:sane(q.x,-600,600,p[piece.id].x),y:sane(q.y,-600,600,p[piece.id].y),rotation:sane(q.rotation,-180,180,p[piece.id].rotation)};});
     if(isLegacyRest(work.pose))w=freshPose();
+    var layerOrder=normalizeLayerOrder(obj.layerOrder),hiddenParts=normalizeHiddenParts(obj.hiddenParts);
     var entries=Array.isArray(obj.savedPoses)?obj.savedPoses.slice(0,40):[];
     var savedPoses=entries.filter(function(v){return v&&typeof v==="object"&&v.pose;}).map(function(v,i){
       var po=freshPose();PARTS.forEach(function(part){var q=v.pose[part.id]||{};po[part.id]={x:sane(q.x,-600,600,part.base[0]),y:sane(q.y,-600,600,part.base[1]),rotation:sane(q.rotation,-180,180,0)};});
-      return {id:String(v.id||("saved-"+i)).slice(0,80),name:String(v.name||("Pose "+(i+1))).slice(0,50),pose:po};
+      return {id:String(v.id||("saved-"+i)).slice(0,80),name:String(v.name||("Pose "+(i+1))).slice(0,50),pose:po,
+        layerOrder:normalizeLayerOrder(v.layerOrder||layerOrder),hiddenParts:normalizeHiddenParts(v.hiddenParts===undefined?hiddenParts:v.hiddenParts)};
     });
     var color=typeof obj.skin==="string"&&/^#[0-9a-f]{6}$/i.test(obj.skin)?obj.skin:"#f9eadd";
-    var layerOrder=[],seenLayers={};
-    (Array.isArray(obj.layerOrder)?obj.layerOrder:[]).forEach(function(id){if(BY_ID[id]&&!seenLayers[id]){seenLayers[id]=true;layerOrder.push(id);}});
-    DRAW_ORDER.forEach(function(id){if(!seenLayers[id]){seenLayers[id]=true;layerOrder.push(id);}});
-    var hiddenParts=Array.isArray(obj.hiddenParts)?Array.from(new Set(obj.hiddenParts.filter(function(id){return !!BY_ID[id];}))):[];
     return {id:String(obj.id||("slot-"+index)).slice(0,100),
       name:String(obj.name||("Personagem "+(index+1))).slice(0,60),
       skin:color,pose:p,workingPose:w,savedPoses:savedPoses,mirrored:!!obj.mirrored,
-      layerOrder:layerOrder,hiddenParts:hiddenParts};
+      layerOrder:layerOrder,hiddenParts:hiddenParts,wardrobe:normalizeWardrobe(obj.wardrobe)};
   }
   function normalize(raw){
     if(!raw||raw.format!=="gacha-body-v1"||raw.version!==1||!Array.isArray(raw.slots)||raw.slots.length!==SLOT_COUNT)
@@ -94,14 +108,33 @@
     var poseSlots=Array(POSE_SLOT_COUNT).fill(null);
     if(Array.isArray(raw.poseSlots))raw.poseSlots.slice(0,POSE_SLOT_COUNT).forEach(function(entry,index){
       if(entry&&typeof entry==="object"&&entry.pose)poseSlots[index]={id:String(entry.id||("pose-slot-"+index)).slice(0,80),
-        name:String(entry.name||("Pose "+(index+1))).slice(0,50),pose:normalizePose(entry.pose)};
+        name:String(entry.name||("Pose "+(index+1))).slice(0,50),pose:normalizePose(entry.pose),layerOrder:normalizeLayerOrder(entry.layerOrder),hiddenParts:normalizeHiddenParts(entry.hiddenParts)};
     });
     slots.forEach(function(character){if(character)character.savedPoses.forEach(function(entry){
       if(poseSlots.some(function(slot){return slot&&slot.id===entry.id;}))return;
       var empty=poseSlots.findIndex(function(slot){return slot===null;});
-      if(empty>=0)poseSlots[empty]={id:entry.id,name:entry.name,pose:copyPose(entry.pose)};
+      if(empty>=0)poseSlots[empty]={id:entry.id,name:entry.name,pose:copyPose(entry.pose),layerOrder:entry.layerOrder.slice(),hiddenParts:entry.hiddenParts.slice()};
     });});
-    return {format:"gacha-body-v1",version:1,poseSlots:poseSlots,slots:slots};
+    var defaultPose=null;
+    if(raw.defaultPose&&raw.defaultPose.pose)defaultPose=poseSnapshot(raw.defaultPose,"Pose padrão");
+    if(!defaultPose&&slots[2]){
+      var source=slots[2].savedPoses[0];
+      if(!source){
+        source={id:"pose-slot-3-default",name:"Pose padrão",pose:copyPose(slots[2].pose),layerOrder:slots[2].layerOrder.slice(),hiddenParts:slots[2].hiddenParts.slice()};
+        slots[2].savedPoses.push(source);
+      }
+      defaultPose=poseSnapshot({...source,sourceSlot:2},"Pose padrão");
+      var sharedIndex=poseSlots.findIndex(function(item){return item&&item.id===source.id;});
+      if(sharedIndex<0)sharedIndex=poseSlots.findIndex(function(item){return item===null;});
+      if(sharedIndex>=0)poseSlots[sharedIndex]={id:source.id,name:source.name,pose:copyPose(source.pose),layerOrder:source.layerOrder.slice(),hiddenParts:source.hiddenParts.slice()};
+    }
+    if(!defaultPose&&poseSlots.some(Boolean))defaultPose=poseSnapshot(poseSlots.find(Boolean),"Pose padrão");
+    return {format:"gacha-body-v1",version:1,poseSlots:poseSlots,slots:slots,defaultPose:defaultPose};
+  }
+  function defaultPoseFor(project){
+    if(project&&project.defaultPose)return poseSnapshot(project.defaultPose,"Pose padrão");
+    if(project&&project.slots&&project.slots[2]){var ch=project.slots[2];return {id:"pose-slot-3-default",name:"Pose padrão",pose:copyPose(ch.pose),layerOrder:ch.layerOrder.slice(),hiddenParts:ch.hiddenParts.slice(),sourceSlot:2};}
+    return project&&project.poseSlots?project.poseSlots.find(Boolean)||null:null;
   }
   function rotation(a){var c=Math.cos(a*Math.PI/180),s=Math.sin(a*Math.PI/180);return [c,s,-s,c,0,0];}
   function mul(m,n){return [m[0]*n[0]+m[2]*n[1],m[1]*n[0]+m[3]*n[1],
@@ -152,6 +185,18 @@
       if(!art)return;
       svg+='<g data-part="'+id+'" transform="matrix('+matrix+')"><image data-part="'+id+'" href="'+art.image+'" x="'+art.x+'" y="'+art.y+'" width="'+art.width+'" height="'+art.height+'" preserveAspectRatio="none"/><image href="'+art.shade+'" x="'+art.x+'" y="'+art.y+'" width="'+art.width+'" height="'+art.height+'" preserveAspectRatio="none" filter="url(#skinTint)" pointer-events="none"/></g>';
     });
+    var wardrobe=normalizeWardrobe(character.wardrobe),catalog=WARDROBE_ART;
+    function clothingImage(kind,item,bodyId,art,x,y,width,height){
+      if(!item||hidden.indexOf(bodyId)>=0||!art)return;
+      var matrix=m[bodyId].map(function(v){return +v.toFixed(5);}).join(" "),cx=x+width/2,cy=y+height/2,scale=item.scale/100;
+      svg+='<g data-clothing="'+kind+'" data-item="'+item.index+'" transform="matrix('+matrix+')"><g transform="translate('+item.x+' '+item.y+')"><g transform="rotate('+item.rotation+' '+cx+' '+cy+')"><g transform="translate('+cx+' '+cy+') scale('+scale+') translate('+(-cx)+' '+(-cy)+')"><image href="'+art.image+'" x="'+x+'" y="'+y+'" width="'+width+'" height="'+height+'" preserveAspectRatio="none"/></g></g></g></g>';
+    }
+    var top=wardrobe.top&&catalog&&catalog.tops[wardrobe.top.index];
+    if(top){var torso=BODY_ART.torso,height=258,width=top.width*height/top.height;
+      clothingImage("top",wardrobe.top,"torso",top,torso.x+(torso.width-width)/2,torso.y+8,width,height);}
+    var pair=wardrobe.sleeves&&catalog&&catalog.sleeves[wardrobe.sleeves.index];
+    if(pair){["armLL","armRL"].forEach(function(id,index){var arm=BODY_ART[id],art=pair[index],height=arm.height*.92,width=art.width*height/art.height;
+      clothingImage("sleeve-"+(index===0?"left":"right"),wardrobe.sleeves,id,art,arm.x+(arm.width-width)/2,arm.y+(arm.height-height)/2,width,height);});}
     if(editor&&options.joints){
       PARTS.forEach(function(p){
         if(hidden.indexOf(p.id)>=0)return;
@@ -166,7 +211,7 @@
     PARTS.forEach(function(p){character.pose[p.id].rotation=preset[p.id]||0;});return true;
   }
   var api={WIDTH:WIDTH,HEIGHT:HEIGHT,SLOT_COUNT:SLOT_COUNT,POSE_SLOT_COUNT:POSE_SLOT_COUNT,PARTS:PARTS,BY_ID:BY_ID,PRESETS:PRESETS,WARDROBE_ART:WARDROBE_ART,
-    DRAW_ORDER:DRAW_ORDER,ART:BODY_ART,makeCharacter:makeCharacter,freshProject:freshProject,
+    DRAW_ORDER:DRAW_ORDER,ART:BODY_ART,makeCharacter:makeCharacter,freshProject:freshProject,defaultPoseFor:defaultPoseFor,
     freshPose:freshPose,copyPose:copyPose,newPoseEntry:newPoseEntry,normalizePose:normalizePose,normalize:normalize,renderSVG:renderSVG,applyPreset:applyPreset,
     transforms:transforms,jointPositions:jointPositions,point:point,mul:mul,rotation:rotation,tr:tr,esc:esc,clamp:clamp};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;

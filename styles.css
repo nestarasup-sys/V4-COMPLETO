@@ -71,3 +71,38 @@
 .page-wardrobe{max-width:1760px;min-height:calc(100dvh - 74px);margin:0 auto;padding:20px;display:flex;flex-direction:column;gap:16px}.wardrobe-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}.wardrobe-heading{text-align:center}.wardrobe-heading h1{font-size:30px;margin:4px 0}.wardrobe-heading p{font-size:12px;color:#a7b5ca}.wardrobe-save-note{justify-self:end;color:#9badc5;font-size:11px}.wardrobe-layout{display:grid;grid-template-columns:minmax(300px,.8fr) minmax(500px,1.2fr);gap:16px;flex:1;min-height:580px}.wardrobe-preview-panel{display:flex;min-height:580px;flex-direction:column;padding:18px;background:radial-gradient(ellipse at 50% 45%,#29354a,#1a2535)}.wardrobe-preview-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}.wardrobe-preview-heading h2,.wardrobe-catalog-heading h2{font-size:19px;margin-top:5px}.wardrobe-preview-stage{display:flex;align-items:center;justify-content:center;flex:1;min-height:0;padding:12px}.wardrobe-phone{position:relative;height:min(67dvh,700px);max-height:calc(100dvh - 300px);aspect-ratio:9/16;min-height:360px;overflow:hidden;border:7px solid #303c51;border-radius:32px;background:#f6f0f8;box-shadow:0 20px 52px #050a1790}.wardrobe-phone-screen{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse,#fffcfd,#e9e2f1)}.wardrobe-phone-screen svg{display:block;width:100%;height:100%}.wardrobe-preview-help{font-size:11px;color:#a7b7ce;line-height:1.5}.wardrobe-catalog{display:flex;flex-direction:column;min-width:0;padding:22px}.wardrobe-catalog-heading p{max-width:620px;margin-top:8px;font-size:12px;color:#a8b6cb}.wardrobe-tabs{display:flex;gap:7px;margin:19px 0 15px;padding:5px;border:1px solid #384a62;border-radius:12px;background:#172232}.wardrobe-tabs button{flex:1;display:flex;justify-content:center;align-items:center;gap:8px;border:1px solid transparent;border-radius:8px;background:transparent;color:#aab9ce;padding:10px 12px;font-size:12px;font-weight:750;cursor:pointer}.wardrobe-tabs button.active{background:#364966;border-color:#647999;color:#f4f5ff}.wardrobe-tabs button span{font-size:9px;color:#bdc8da;background:#1e2b3e;border-radius:6px;padding:3px 6px}.wardrobe-options-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.wardrobe-options-heading h3{font-size:15px}.wardrobe-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-content:start}.wardrobe-item{position:relative;display:flex;min-width:0;flex-direction:column;align-items:center;justify-content:space-between;gap:6px;aspect-ratio:1/.94;padding:9px 7px;border:1px solid #40526d;border-radius:12px;background:linear-gradient(145deg,#26344a,#202b3d);color:#dce5f3}.wardrobe-option-art{display:flex;align-items:center;justify-content:center;gap:3px;width:100%;height:100%;min-height:0;flex:1;overflow:hidden}.wardrobe-option-art img{display:block;max-width:95%;max-height:100%;object-fit:contain;filter:drop-shadow(0 4px 6px #080d1866)}.wardrobe-sleeve-pair img{max-width:48%;height:95%}.wardrobe-option-name{width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;color:#e5ebf5;font-size:10px;font-weight:750}
 @media(max-width:1160px){.wardrobe-layout{grid-template-columns:minmax(270px,.75fr) minmax(420px,1.25fr);gap:11px}.wardrobe-catalog{padding:16px}.wardrobe-options{gap:7px}.wardrobe-feature{grid-column:auto}}
 @media(max-width:950px){.page-wardrobe{padding:14px}.wardrobe-top{grid-template-columns:1fr auto}.wardrobe-heading{grid-row:1;grid-column:1/-1}.wardrobe-top .back-button{grid-row:2;grid-column:1}.wardrobe-save-note{grid-row:2;grid-column:2}.wardrobe-layout{grid-template-columns:1fr}.wardrobe-preview-panel{min-height:520px}.wardrobe-phone{height:540px;max-height:60dvh;min-height:350px}.wardrobe-catalog{min-height:600px}.wardrobe-options{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+/* Larger character previews and functional per-character wardrobe controls. */
+.showcase{min-height:560px}
+.phone-shell{height:min(78dvh,820px);max-height:calc(100% - 30px)}
+.wardrobe-layout{grid-template-columns:minmax(350px,.88fr) minmax(520px,1.12fr);min-height:700px}
+.wardrobe-preview-panel{min-height:700px}
+.wardrobe-phone{height:min(80dvh,820px);max-height:calc(100dvh - 170px);min-height:430px}
+.wardrobe-controls{padding:13px;margin:4px 0 14px;border:1px solid #40526d;border-radius:13px;background:linear-gradient(145deg,#202e43,#192537)}
+.wardrobe-adjust-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px}
+.wardrobe-adjust-head strong{display:block;margin-top:4px;font-size:14px}
+.wardrobe-adjust-head .button{padding:8px 11px;font-size:10px}
+.wardrobe-transform-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.wardrobe-transform-control{display:block;min-width:0;color:#bfcbdf;font-size:10px;font-weight:700}
+.wardrobe-transform-control>span{display:flex;justify-content:space-between;gap:5px;margin-bottom:5px;white-space:nowrap}
+.wardrobe-transform-control output{color:#ded8ff;font-variant-numeric:tabular-nums}
+.wardrobe-transform-control input{width:100%;height:16px;margin:0;accent-color:#b9a9ff;cursor:pointer}
+.wardrobe-nudge-row{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:10px}
+.wardrobe-nudge-row>span{margin-right:auto;color:#9eafc8;font-size:10px}
+.wardrobe-nudge-row button{width:30px;height:27px;border:1px solid #536783;border-radius:7px;background:#2a3a52;color:#e3e9f7;cursor:pointer}
+.wardrobe-nudge-row button:hover{border-color:#b9a9ff;background:#3a4563}
+.wardrobe-adjust-empty{display:flex;flex-direction:column;gap:4px;color:#d3dded;font-size:11px}
+.wardrobe-adjust-empty span+span{color:#92a4be;font-size:10px}
+.wardrobe-item{cursor:pointer}
+.wardrobe-item.selected{border-color:#c0b2ff;box-shadow:0 0 0 2px #b6a5ff35,0 7px 20px #0c102555}
+.wardrobe-wear-label{width:100%;padding:4px 5px;border-radius:6px;background:#35435b;color:#c9d4e7;text-align:center;font-size:9px;font-weight:800}
+.wardrobe-item.selected .wardrobe-wear-label{background:#c1b5ff;color:#24203d}
+.wardrobe-layout{min-height:min(74dvh,760px)}
+.wardrobe-preview-panel{min-height:0;padding:12px}
+.wardrobe-preview-heading,.wardrobe-preview-help{display:none}
+.wardrobe-preview-stage{padding:0;flex:none;height:min(72dvh,550px);align-items:flex-start}
+.wardrobe-phone{height:min(72dvh,660px);max-height:calc(100dvh - 190px);min-height:360px;flex:none}
+.page-home{height:calc(100dvh - 74px);min-height:650px}
+.home-sidebar{height:calc(100dvh - 114px);min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#586787 transparent}
+@media(max-width:1160px){.wardrobe-layout{grid-template-columns:minmax(330px,.82fr) minmax(480px,1.18fr)}.wardrobe-transform-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.wardrobe-options{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1020px){.wardrobe-layout{grid-template-columns:minmax(310px,.78fr) minmax(440px,1.22fr)}}

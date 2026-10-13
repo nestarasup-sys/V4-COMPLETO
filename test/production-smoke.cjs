@@ -72,11 +72,15 @@ async function main(){
   await connection.evaluate('document.querySelector("[data-action=\\"layer-front:torso\\"]").click()');
   await connection.evaluate('document.querySelector("[data-action=\\"toggle-layer:head\\"]").click()');
   await connection.evaluate('(function(){const color=document.querySelector("#skin-color");color.value="#13579b";color.dispatchEvent(new Event("change",{bubbles:true}));})()');
+  await connection.evaluate('document.querySelector("[data-action=open-wardrobe]").click()');
+  await connection.evaluate('document.querySelector("[data-action=\\"wardrobe-wear:tops:2\\"]").click()');
+  await connection.evaluate('(function(){const field=document.querySelector("[data-wardrobe-field=x]");field.value="18";field.dispatchEvent(new Event("change",{bubbles:true}));})()');
   await pause(500);
   const changed=JSON.parse(await connection.evaluate("window.GachaEditor.serialize()"));
   const memoryPath=path.join(userData,"characters.json");
   const onDisk=JSON.parse(await fs.readFile(memoryPath,"utf8"));
   assert.equal(onDisk.slots[0].skin,"#13579b","O IPC deve salvar a cor alterada no perfil isolado.");
+  assert.deepEqual(onDisk.slots[0].wardrobe.top,{index:2,x:18,y:0,scale:100,rotation:0},"O IPC deve salvar roupa e posição no personagem.");
   assert.ok(onDisk.slots[0].hiddenParts.includes("head"),"O IPC deve salvar a visibilidade da camada.");
   assert.deepEqual(onDisk.slots[0].layerOrder,changed.slots[0].layerOrder,"A mudança na ordem das camadas deve chegar ao disco.");
   await stopApp(child,connection);child=null;connection=null;
@@ -84,10 +88,11 @@ async function main(){
   port=await freePort();child=launch();child.on("error",error=>console.error("Could not relaunch packaged Electron:",error));connection=await connectApp(child,port,userData);console.log("Packaged Electron reopened");
   const reloaded=JSON.parse(await connection.evaluate("window.GachaEditor.serialize()"));
   assert.equal(reloaded.slots[0].skin,"#13579b","A cor deve voltar do perfil salvo ao reiniciar o pacote.");
+  assert.deepEqual(reloaded.slots[0].wardrobe.top,{index:2,x:18,y:0,scale:100,rotation:0},"A roupa e seus controles devem voltar após reiniciar o pacote.");
   assert.ok(reloaded.slots[0].hiddenParts.includes("head"),"A visibilidade deve voltar ao reabrir o app.");
   assert.deepEqual(reloaded.slots[0].layerOrder,changed.slots[0].layerOrder,"A ordem das camadas deve voltar ao reabrir o app.");
   await stopApp(child,connection);child=null;connection=null;
-  console.log("Production smoke OK: pacote Electron 44.7.0 oculto, IPC, camada/cor no disco e reabertura confirmados.");
+  console.log("Production smoke OK: pacote Electron 44.7.0 oculto, IPC, camadas, cor, roupas e reabertura confirmados.");
  }finally{
   if(child)await stopApp(child,connection);
   await fs.rm(userData,{recursive:true,force:true});

@@ -21,9 +21,9 @@ A tela **Personagens** mostra os 16 slots e a pose publicada. **Corpo / Pose** a
 
 O estúdio inicia em **Mover**. Arraste qualquer peça; `R` alterna para girar e `V` para mover. Setas deslocam 1 px e Shift+seta desloca 10 px. Os campos X, Y e ângulo aceitam edição decimal contínua e registram uma ação de undo. As abas **Peças / Camadas** alternam entre a seleção do rig e a ordem visual; arraste uma linha ou use as setas para mover camadas para frente ou para trás. A ordem e a visibilidade são salvas automaticamente sem remover ajustes.
 
-Poses salvas ficam associadas ao personagem selecionado, têm miniaturas e podem ser carregadas como rascunho, duplicadas, renomeadas, copiadas para outro personagem ou importadas/exportadas como `gacha-pose-v1`. Salvar, renomear, copiar e excluir usam diálogos do próprio app. As poses salvas também ocupam até 12 slots compartilhados na tela inicial; personagens novos recebem a pose do slot 01 quando preenchido.
+Poses salvas ficam associadas ao personagem selecionado, têm miniaturas e podem ser carregadas como rascunho, duplicadas, renomeadas, copiadas para outro personagem ou importadas/exportadas como `gacha-pose-v1`. Cada pose preserva a ordem e a visibilidade das camadas. Salvar, renomear, copiar e excluir usam diálogos do próprio app. As poses salvas também ocupam até 12 slots compartilhados na tela inicial. Quando o slot 03 já tem uma pose aplicada, ela é migrada como padrão para personagens novos; em projetos sem slot 03, o app usa a primeira pose compartilhada disponível.
 
-A página **Guarda-roupa** abre separadamente com o personagem selecionado à esquerda e o catálogo à direita. A primeira folha contém oito regatas e oito pares de mangas, exibidos em categorias. Nesta etapa, as peças ficam no catálogo e não são aplicadas nem encaixadas no personagem. A folha original está em `assets/wardrobe/source-sheet.png`; para regenerar os recortes transparentes e `src/wardrobe-art.js`, rode `python scripts/extract-wardrobe-assets.py` com Pillow instalado.
+A página **Guarda-roupa** abre separadamente com o personagem selecionado à esquerda e o catálogo à direita. A primeira folha contém oito regatas e oito pares de mangas, exibidos em categorias. As peças podem ser vestidas, removidas e ajustadas por posição X/Y, escala, rotação e botões de movimento fino; cada personagem mantém seu próprio conjunto de roupas. A folha original está em `assets/wardrobe/source-sheet.png`; para regenerar os recortes transparentes e `src/wardrobe-art.js`, rode `python scripts/extract-wardrobe-assets.py` com Pillow instalado.
 
 ## Dados e segurança
 
@@ -64,5 +64,5 @@ Capturas do smoke:
 
 ## Limites atuais
 
-O catálogo inicial mostra roupas sem aplicá-las ao rig; encaixe e composição de roupas são etapas futuras. O rig ainda não tem cabelo, rosto detalhado ou importador interativo de assets. Não há adaptador de exportação para o formato de timeline do editor de vídeo.
+O guarda-roupa inicial inclui regatas e mangas com ajustes básicos por personagem; encaixes anatômicos independentes para cada segmento de braço e pernas ainda são etapas futuras. O rig ainda não tem cabelo, rosto detalhado ou importador interativo de assets. Não há adaptador de exportação para o formato de timeline do editor de vídeo.
 

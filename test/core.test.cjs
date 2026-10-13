@@ -22,13 +22,55 @@ test("all ten body pieces with parent joints",()=>{
  const ch=core.makeCharacter(0);assert.equal(core.PARTS.length,10);assert.equal(Object.keys(ch.pose).length,10);
  const matrix=core.transforms(ch);assert.equal(Object.keys(matrix).length,10);
 });
-test("wardrobe catalog contains the original sheet assets without modifying the character preview",()=>{
+test("wardrobe catalog contains the original sheet assets and garments render only when worn",()=>{
  const character=core.makeCharacter(0);
  assert.equal(core.WARDROBE_ART.tops.length,8,"catálogo mostra as oito regatas da folha");
  assert.equal(core.WARDROBE_ART.sleeves.length,8,"catálogo mostra os oito pares de mangas");
  core.WARDROBE_ART.tops.concat(...core.WARDROBE_ART.sleeves).forEach(piece=>assert.match(piece.image,/^data:image\/png;base64,/));
  const svg=core.renderSVG(character);
- assert.equal(svg.includes("data-clothing"),false,"as peças ficam no catálogo e não são encaixadas no personagem");
+ assert.equal(svg.includes("data-clothing"),false,"personagens sem escolha começam sem roupa equipada");
+ character.wardrobe.top={index:2,x:13,y:-8,scale:120,rotation:5};
+ character.wardrobe.sleeves={index:4,x:-3,y:6,scale:90,rotation:-2};
+ const dressed=core.renderSVG(character);
+ assert.equal((dressed.match(/data-clothing=/g)||[]).length,3,"a regata e as duas mangas acompanham o corpo articulado");
+ assert.match(dressed,/data-clothing="top" data-item="2"/);
+ assert.match(dressed,/data-clothing="sleeve-left" data-item="4"/);
+ assert.match(dressed,/data-clothing="sleeve-right" data-item="4"/);
+ const normalized=core.normalize({format:"gacha-body-v1",version:1,slots:[character,...Array(15).fill(null)]}).slots[0];
+ assert.deepEqual(normalized.wardrobe,character.wardrobe,"transformações de roupa persistem na normalização do projeto");
+ normalized.wardrobe.top=null;assert.equal(normalized.wardrobe.sleeves.index,4,"remover uma categoria não apaga a outra");
+});
+
+test("slot three pose and layer stack become the persistent default for new characters",()=>{
+ const project=core.freshProject(),source=core.makeCharacter(2),pose=core.freshPose();
+ pose.head.rotation=-6;pose.armLU.rotation=23;pose.armLL.rotation=-126;pose.armRU.rotation=-30;pose.armRL.rotation=127;pose.legRU.rotation=-74;
+ source.pose=core.copyPose(pose);source.workingPose=core.copyPose(pose);
+ source.layerOrder=["head","torso","armLL","armRL","armLU","armRU","legLL","legRL","legLU","legRU"];
+ source.hiddenParts=["armRU"];
+ project.slots[2]=source;
+ const restored=core.normalize(JSON.parse(JSON.stringify(project)));
+ assert.equal(restored.defaultPose.sourceSlot,2);
+ assert.deepEqual(restored.defaultPose.pose,pose,"migração adota a pose aplicada ao personagem do slot 3");
+ assert.deepEqual(restored.defaultPose.layerOrder,source.layerOrder);
+ assert.deepEqual(restored.defaultPose.hiddenParts,["armRU"]);
+ assert.equal(restored.slots[2].savedPoses[0].name,"Pose padrão","projeto antigo ganha uma pose editável correspondente ao padrão");
+ assert.equal(restored.poseSlots[0].id,restored.defaultPose.id,"pose padrão também fica acessível na biblioteca rápida");
+ const created=core.makeCharacter(7,core.defaultPoseFor(restored));
+ assert.deepEqual(created.pose,restored.slots[2].pose);
+ assert.deepEqual(created.layerOrder,restored.slots[2].layerOrder,"personagem novo herda a ordem customizada");
+ assert.deepEqual(created.hiddenParts,["armRU"],"personagem novo herda a visibilidade de cada camada");
+ const roundtrip=core.normalize(JSON.parse(JSON.stringify(restored)));
+ assert.deepEqual(core.defaultPoseFor(roundtrip),restored.defaultPose,"padrão permanece estável ao reabrir o projeto");
+});
+
+test("saved poses preserve custom layer order and visibility across import-compatible projects",()=>{
+ const project=core.freshProject(),ch=project.slots[0];ch.layerOrder=["head","torso","armLU"];
+ ch.hiddenParts=["armRU","legLU"];
+ const entry=core.newPoseEntry("Camadas",ch.workingPose,ch);ch.savedPoses.push(entry);project.poseSlots[0]=entry;
+ const restored=core.normalize(JSON.parse(JSON.stringify(project)));
+ assert.deepEqual(restored.poseSlots[0].layerOrder,ch.layerOrder.concat(core.DRAW_ORDER.filter(id=>!ch.layerOrder.includes(id))));
+ assert.deepEqual(restored.poseSlots[0].hiddenParts,["armRU","legLU"]);
+ assert.deepEqual(restored.slots[0].savedPoses[0].hiddenParts,["armRU","legLU"]);
 });
 test("neutral sprite assembly closes limb gaps and migrates untouched old defaults",()=>{
  const neutral=core.freshPose();

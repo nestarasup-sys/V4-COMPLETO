@@ -35,9 +35,9 @@
     <div class="showcase-actions"><button class="button outline requires-character" data-action="export-png">⬇ Exportar personagem PNG</button><button class="button muted requires-character" data-action="mirror">⇄ Espelhar personagem</button></div>
   </section>
   <aside class="home-sidebar">
-    <section class="surface home-pose-library" aria-labelledby="home-pose-title"><div class="card-title"><div><span class="eyebrow">BIBLIOTECA RÁPIDA</span><h3 id="home-pose-title">Poses salvas</h3></div><span id="home-pose-count" class="tag">0/12</span></div><p class="subtle">Clique numa pose para aplicar. Personagens novos começam com o slot 01.</p><div id="home-pose-slots" class="home-pose-slots" aria-label="12 slots de poses salvas"></div></section>
+    <section class="surface home-pose-library" aria-labelledby="home-pose-title"><div class="card-title"><div><span class="eyebrow">BIBLIOTECA RÁPIDA</span><h3 id="home-pose-title">Poses salvas</h3></div><span id="home-pose-count" class="tag">0/12</span></div><p class="subtle">Clique numa pose para aplicar. Novos personagens herdam a pose padrão e suas camadas.</p><div id="home-pose-slots" class="home-pose-slots" aria-label="12 slots de poses salvas"></div></section>
     <button class="feature-card requires-character" data-action="open-pose"><span class="feature-icon">⌁</span><span class="feature-body"><span class="eyebrow">FERRAMENTAS DE CRIAÇÃO</span><strong>Corpo / Pose</strong><small>Abra o estúdio de montagem para mexer nas peças, ajustar juntas e salvar poses.</small><span class="feature-link">Entrar no editor <span>↗</span></span></span></button>
-    <button class="feature-card wardrobe-feature requires-character" data-action="open-wardrobe"><span class="feature-icon">♧</span><span class="feature-body"><span class="eyebrow">ROUPAS E ESTILO</span><strong>Guarda-roupa</strong><small>Veja o catálogo de regatas e mangas ao lado do personagem.</small><span class="feature-link">Abrir guarda-roupa <span>↗</span></span></span></button>
+    <button class="feature-card wardrobe-feature requires-character" data-action="open-wardrobe"><span class="feature-icon">♧</span><span class="feature-body"><span class="eyebrow">ROUPAS E ESTILO</span><strong>Guarda-roupa</strong><small>Vista regatas e mangas e ajuste posição, escala e rotação no personagem.</small><span class="feature-link">Abrir guarda-roupa <span>↗</span></span></span></button>
     <div class="surface details-card"><div class="card-title"><h3>Identidade</h3><span class="tag">Básico</span></div>
       <label class="field-label" for="character-name">Nome do personagem</label><input id="character-name" type="text" maxlength="60" placeholder="Nome">
       <label class="field-label" for="skin-color">Tom de pele</label><div class="color-field"><input id="skin-color" type="color" value="#f9eadd"><span>Cor principal do corpo</span></div>
@@ -51,18 +51,19 @@
   <div class="wardrobe-top">
     <button class="back-button" data-action="back-home"><span class="back-symbol">←</span> Voltar aos personagens</button>
     <div class="wardrobe-heading"><span class="eyebrow">ROUPAS E ESTILO</span><h1>Guarda-roupa</h1><p id="wardrobe-person-name">Personagem 01</p></div>
-    <span class="wardrobe-save-note"><span class="status-dot"></span> Catálogo de roupas</span>
+    <span class="wardrobe-save-note"><span class="status-dot"></span> Salvo neste personagem</span>
   </div>
   <div class="wardrobe-layout">
     <section class="wardrobe-preview-panel surface" aria-label="Prévia do personagem selecionado">
       <div class="wardrobe-preview-heading"><div><span class="eyebrow">PERSONAGEM SELECIONADO</span><h2>Seu personagem</h2></div></div>
       <div class="wardrobe-preview-stage"><div class="wardrobe-phone"><div id="wardrobe-preview" class="wardrobe-phone-screen"></div></div></div>
-      <p class="wardrobe-preview-help">O personagem permanece na prévia. As peças desta página são exibidas no catálogo ao lado.</p>
+      <p class="wardrobe-preview-help">Vista uma peça no catálogo e ajuste posição, tamanho e ângulo. Cada personagem mantém seu próprio visual.</p>
     </section>
     <section class="wardrobe-catalog surface" aria-label="Catálogo de roupas">
       <div class="wardrobe-catalog-heading"><span class="eyebrow">CATÁLOGO INICIAL</span><h2>Regatas e mangas</h2><p>As peças da folha enviada aparecem aqui, organizadas por categoria.</p></div>
       <div class="wardrobe-tabs" role="tablist" aria-label="Categorias de roupas"><button type="button" class="active" data-action="wardrobe-category:tops" role="tab" aria-selected="true">Regatas <span>8</span></button><button type="button" data-action="wardrobe-category:sleeves" role="tab" aria-selected="false">Mangas <span>8 pares</span></button></div>
       <div class="wardrobe-options-heading"><h3 id="wardrobe-category-title">Regatas</h3><span id="wardrobe-item-count" class="tag">8 itens</span></div>
+      <div id="wardrobe-controls" class="wardrobe-controls" aria-label="Ajustes da peça vestida"></div>
       <div id="wardrobe-options" class="wardrobe-options" aria-label="Opções de roupa"></div>
     </section>
   </div>
