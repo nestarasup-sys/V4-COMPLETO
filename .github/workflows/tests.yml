@@ -10,14 +10,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-      - run: npm ci
+      - run: npm install
       - run: npm run check
       - run: npm test
-      - name: Electron end-to-end and responsive screenshots
-        run: xvfb-run -a npm run test:e2e
+      - run: xvfb-run -a npm run ui-test
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: gacha-v4-electron-screenshots
-          path: artifacts/electron-*.png
-          if-no-files-found: error
+          name: ux-smoke-screenshots
+          path: artifacts/ui-*.png
+          if-no-files-found: ignore

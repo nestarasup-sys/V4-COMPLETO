@@ -1,35 +1,80 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'">
-<title>Gacha V4 • Corpo & Pose</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="src/poses.css">
-<script src="src/core.js" defer></script><script src="src/renderer.js" defer></script><script src="src/drag.js" defer></script></head>
+<title>Gacha V4 — Character Studio</title><link rel="stylesheet" href="styles.css">
+<script src="src/core.js" defer></script><script src="src/renderer.js" defer></script><script src="src/drag.js" defer></script>
+</head>
 <body>
-<header class="topbar"><div class="brand"><div class="brand-mark">✦</div><div><strong>GACHA <em>V4</em></strong><small>BODY STUDIO • ALPHA</small></div></div>
-<div class="breadcrumbs"><span>Editor de personagem</span><b>/</b><strong>Corpo & Pose</strong></div>
-<div class="global-actions"><button id="undo-btn" data-action="undo" title="Desfazer (Ctrl+Z)">↶ <span>Desfazer</span></button><button id="redo-btn" data-action="redo" title="Refazer (Ctrl+Y)">↷ <span>Refazer</span></button><button class="primary" data-action="export-json">↥ <span>Salvar projeto</span></button></div></header>
-<main class="workspace">
-<aside class="slots-panel panel"><div class="panel-title"><div><small>BIBLIOTECA</small><h2>Personagens</h2></div><span class="count" id="slot-count">1 / 16</span></div>
-<div class="slots-scroll"><div class="slot-grid" id="slot-grid"></div></div>
-<div class="slot-footer"><button class="secondary" data-action="new">＋ Novo slot</button><button class="ghost requires-character" data-action="clone">⧉ Duplicar</button></div></aside>
-<section class="preview-panel panel"><div class="panel-title"><div><small>PRÉ-VISUALIZAÇÃO</small><h2>Personagem</h2></div><span class="live-badge"><span></span> AO VIVO</span></div>
-<div class="phone-wrap"><div class="phone"><div class="phone-notch"></div><div class="phone-content" id="phone-preview"></div><div class="phone-bottom"></div></div></div>
-<div class="preview-info"><div><small id="slot-position">Slot 01</small><strong id="slot-title">Personagem 01</strong></div><button class="icon-button requires-character" data-action="mirror" title="Espelhar visual">⇆</button></div>
-<div class="preview-actions"><button class="secondary requires-character" data-action="export-png">↓ PNG transparente</button><button class="ghost" data-action="export-json">↓ JSON</button></div>
-</section>
-<section class="editor-panel panel"><nav class="tabs"><button data-tab="body" class="active">◉ Corpo / Pose</button><button data-tab="project">▤ Projeto</button></nav>
-<div id="panel-body" class="body-tab"><div class="editor-header"><div><small>ARTICULAÇÃO 2D</small><h2>Monte seu corpo</h2><p>Arraste as peças para criar poses únicas.</p></div><div class="tool-switch"><button class="active" data-tool="rotate" title="Girar peça (R)">⤾ Girar</button><button data-tool="move" title="Mover peça (V)">✥ Mover</button></div></div>
-<div class="editor-grid"><div class="canvas-side"><div class="canvas-header"><span>CANVAS • 1122 × 1402</span><span id="zoom-label">100%</span></div><div class="canvas-shell"><div class="editor-stage" id="editor-stage"></div></div>
-<div class="canvas-options"><label><input id="joint-toggle" type="checkbox" checked> <span>Juntas</span></label><label><input id="grid-toggle" type="checkbox"> <span>Grade</span></label><label><input id="snap-toggle" type="checkbox"> <span>Snap</span></label></div>
-<div class="zoom-control"><span>Zoom</span><input id="zoom-range" type="range" min="70" max="145" value="100" step="5"><span>145%</span></div>
-<div class="pose-presets"><div class="caption">POSES RÁPIDAS</div><div class="preset-buttons"><button data-action="preset:neutra">Neutra</button><button data-action="preset:aceno">Aceno</button><button data-action="preset:corrida">Corrida</button><button data-action="preset:sentada">Sentada</button><button data-action="preset:danca">Dança</button></div></div>
-<section class="pose-library" aria-labelledby="pose-library-title"><div class="pose-library-heading"><div><div class="caption" id="pose-library-title">BIBLIOTECA DE POSES</div><small id="pose-library-count"></small></div><div class="pose-library-actions"><button class="secondary requires-character" data-action="save-pose">＋ Salvar pose</button><button class="ghost" data-action="import-poses">Importar</button><button class="ghost" data-action="export-poses">Exportar</button></div></div><div id="pose-library-grid" class="pose-library-grid"></div><div class="pose-library-pager"><button class="ghost" data-action="pose-page-prev">‹ Anterior</button><span id="pose-page-label"></span><button class="ghost" data-action="pose-page-next">Próxima ›</button></div></section></div>
-<aside class="properties"><div class="section-label">PEÇAS DO CORPO <span>10</span></div><div id="part-list" class="part-list"></div><div id="part-tools" class="part-tools"></div></aside></div></div>
-<div id="panel-project" class="project-tab" hidden><div class="editor-header"><div><small>ARQUIVO DO PERSONAGEM</small><h2>Projeto & aparência</h2><p>Organize os slots e guarde seu trabalho.</p></div></div>
-<div class="project-form"><label>Nome do personagem<input id="character-name" type="text" maxlength="60" placeholder="Nome do personagem"></label>
-<label>Tom de pele<input id="skin-color" type="color" value="#f9eadd"></label>
-<div class="project-actions"><button class="secondary" data-action="import-json">↓ Importar projeto JSON</button><button class="secondary" data-action="export-json">↑ Exportar JSON</button><button class="secondary requires-character" data-action="export-png">↓ Exportar PNG</button><button class="ghost danger requires-character" data-action="delete">Excluir personagem</button></div>
-<p class="hint">O salvamento automático mantém até 16 personagens. Os arquivos .json são editáveis neste app.</p></div></div>
-<div class="bottom-bar"><span id="empty-slot-message" hidden>Nenhum personagem neste slot.</span><span><i class="indicator"></i> Auto-salvamento ativo</span><button data-action="reset-pose" class="ghost requires-character">↺ Restaurar pose</button></div>
-</section></main>
+<header class="topbar">
+  <div class="brand"><div class="brand-mark">✦</div><div class="brand-copy"><strong>GACHA <span>V4</span></strong><small>CHARACTER STUDIO</small></div></div>
+  <div class="breadcrumbs"><span id="breadcrumb-text">Seu estúdio</span><span class="crumb-slash">/</span><strong id="breadcrumb-current">Personagens</strong></div>
+  <div class="top-actions">
+    <span class="autosave"><span class="status-dot"></span> Salvo automaticamente</span>
+    <button id="undo-btn" class="icon-button" data-action="undo" title="Desfazer (Ctrl+Z)" aria-label="Desfazer">↶</button>
+    <button id="redo-btn" class="icon-button" data-action="redo" title="Refazer (Ctrl+Y)" aria-label="Refazer">↷</button>
+    <button class="button secondary toolbar-save" data-action="export-json">⬇ Exportar projeto</button>
+  </div>
+</header>
+
+<main id="page-home" class="page page-home">
+  <aside class="library surface">
+    <div class="section-heading"><div><span class="eyebrow">SEU ELENCO</span><h2>Personagens</h2></div><span id="slot-count" class="counter">1/16</span></div>
+    <p class="subtle library-hint">Escolha um slot para personalizar.</p>
+    <div class="library-scroll"><div id="slot-grid" class="slot-grid" aria-label="Slots de personagens"></div></div>
+    <div class="library-actions"><button class="button outline" data-action="new">＋ Novo</button><button class="button muted requires-character" data-action="clone">⧉ Copiar</button></div>
+  </aside>
+  <section class="home-center">
+    <div class="home-title"><div><span class="eyebrow">PERSONAGEM SELECIONADO</span><h1 id="hero-name">Personagem 01</h1><p>Visual principal do personagem. Suas poses em edição ficam separadas até você aplicar.</p></div><span id="slot-position" class="slot-chip">SLOT 01</span></div>
+    <div class="showcase">
+      <div class="showcase-decoration decoration-1"></div><div class="showcase-decoration decoration-2"></div>
+      <div class="phone-shell"><div class="phone-camera"></div><div id="phone-preview" class="phone-screen"></div><div class="phone-line"></div></div>
+      <div class="showcase-foot"><span class="status-dot"></span> Prévia oficial <span class="preview-note">9:16 • sem distorção</span></div>
+    </div>
+    <div class="showcase-actions"><button class="button outline requires-character" data-action="export-png">⬇ Exportar personagem PNG</button><button class="button muted requires-character" data-action="mirror">⇄ Espelhar personagem</button></div>
+  </section>
+  <aside class="home-sidebar">
+    <div class="welcome-card"><span class="eyebrow">SEU ATELIÊ</span><h2>Crie do seu jeito.</h2><p>Monte o corpo, desenhe poses e volte quando estiver pronto. O personagem principal não muda enquanto você experimenta.</p></div>
+    <button class="feature-card requires-character" data-action="open-pose"><span class="feature-icon">⌁</span><span class="feature-body"><span class="eyebrow">FERRAMENTAS DE CRIAÇÃO</span><strong>Corpo / Pose</strong><small>Abra o estúdio de montagem para mexer nas peças, ajustar juntas e salvar poses.</small><span class="feature-link">Entrar no editor <span>↗</span></span></span></button>
+    <div class="surface details-card"><div class="card-title"><h3>Identidade</h3><span class="tag">Básico</span></div>
+      <label class="field-label" for="character-name">Nome do personagem</label><input id="character-name" type="text" maxlength="60" placeholder="Nome">
+      <label class="field-label" for="skin-color">Tom de pele</label><div class="color-field"><input id="skin-color" type="color" value="#f9eadd"><span>Cor principal do corpo</span></div>
+      <div class="card-actions"><button class="button muted" data-action="import-json">Importar projeto</button><button class="button danger requires-character" data-action="delete">Excluir</button></div>
+    </div>
+    <p class="sidebar-note">Você pode criar até 16 personagens. O editor salva seu progresso automaticamente.</p>
+  </aside>
+</main>
+
+<main id="page-pose" class="page page-pose" hidden>
+  <div class="pose-top">
+    <button class="back-button" data-action="back-home"><span class="back-symbol">←</span> Voltar aos personagens</button>
+    <div class="pose-heading"><span class="eyebrow">ESTÚDIO DE MONTAGEM</span><h1>Corpo <span>/</span> Pose</h1><p id="pose-person-name">Personagem 01</p></div>
+    <div class="pose-top-actions"><span class="draft-pill"><span class="status-dot"></span> Rascunho independente</span><button class="button outline" data-action="save-pose">♡ Salvar pose</button><button class="button primary" data-action="apply-pose">✓ Aplicar ao personagem</button></div>
+  </div>
+  <div class="draft-info">✧ <strong>Experimente sem medo.</strong> Alterações aqui não afetam a prévia da tela inicial. Clique em <b>Aplicar ao personagem</b> quando quiser usar a pose.</div>
+  <div class="pose-layout">
+    <aside class="rig-sidebar surface">
+      <div class="rig-heading"><span class="eyebrow">ESQUELETO 2D</span><h3>Peças do corpo</h3><p>Selecione uma peça aqui ou diretamente no canvas.</p></div>
+      <div id="part-list" class="part-list"></div>
+      <div class="rig-help"><span>⌘</span> Arraste para mover · <kbd>R</kbd> gira · <kbd>V</kbd> move</div>
+    </aside>
+    <section class="canvas-pane">
+      <div class="canvas-top"><div><span class="eyebrow">ÁREA DE MONTAGEM</span><strong id="selected-piece-label">Cabeça</strong></div><div class="tool-switch" role="group" aria-label="Ferramenta de edição"><button data-tool="move" class="active">✥ Mover <kbd>V</kbd></button><button data-tool="rotate">↻ Girar <kbd>R</kbd></button></div></div>
+      <div class="canvas-shell"><div id="editor-stage" class="editor-stage" aria-label="Canvas para montagem das peças"></div><div class="canvas-watermark">GACHA V4 <span>•</span> CORPO</div></div>
+      <div class="canvas-bottom"><div class="toggles"><label><input id="joint-toggle" type="checkbox" checked> Pontos de conexão</label><label><input id="grid-toggle" type="checkbox" checked> Grade</label><label><input id="snap-toggle" type="checkbox"> Encaixe de 10px / 5°</label></div><div class="zoom"><span>Zoom</span><input id="zoom-range" type="range" min="70" max="155" step="5" value="100"><strong id="zoom-label">100%</strong></div></div>
+      <p class="canvas-tip">Dica: escolha <b>Mover</b> e arraste qualquer parte do corpo. Para encaixe fino, use os botões de 1 pixel ou os campos X/Y.</p>
+    </section>
+    <aside class="inspector surface">
+      <div class="inspector-heading"><span class="eyebrow">CONTROLES</span><h3>Ajustar peça</h3><p id="selection-description">Selecione uma peça para editar.</p></div>
+      <div id="part-tools" class="part-tools"></div>
+      <div class="inspector-divider"></div>
+      <div class="preset-section"><div class="card-title"><h3>Poses prontas</h3><span class="tag">5</span></div><p class="subtle">Comece com uma base e personalize.</p><div class="preset-grid"><button data-action="preset:neutra">♙ Neutra</button><button data-action="preset:aceno">✋ Aceno</button><button data-action="preset:corrida">➜ Corrida</button><button data-action="preset:sentada">▤ Sentada</button><button data-action="preset:danca">♫ Dança</button></div></div>
+      <div class="inspector-divider"></div>
+      <div class="saved-section"><div class="card-title"><h3>Minhas poses</h3><span id="saved-pose-count" class="tag">0</span></div><div id="saved-pose-list" class="saved-list"></div><button class="button outline full" data-action="save-pose">＋ Guardar pose atual</button></div>
+      <div class="inspector-divider"></div><button class="button muted full" data-action="reset-pose">↶ Reiniciar rascunho</button>
+    </aside>
+  </div>
+</main>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body></html>

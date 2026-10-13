@@ -17,8 +17,8 @@
   };
   var PARTS = [
     {id:"torso", name:"Tronco", parent:null, pivot:[559,475], base:[0,0]},
-    // Os pontos de junta usam o mesmo espaço de coordenadas dos contornos.
-    // Para cada filha, child + base deve coincidir com o ponto no pai.
+    // Anchor coordinates share the vector-art coordinate space. Child base offsets
+    // place each child anchor directly on its parent's anchor in the neutral pose.
     {id:"head", name:"Cabeça", parent:"torso", pivot:[559,318], base:[0,23], joint:{parent:[559,341],child:[559,318]}},
     {id:"armLU", name:"Braço superior E", parent:"torso", pivot:[335,332], base:[135,58], joint:{parent:[470,390],child:[335,332]}},
     {id:"armLL", name:"Antebraço E", parent:"armLU", pivot:[257,513], base:[0,-8], joint:{parent:[257,505],child:[257,513]}},
@@ -40,72 +40,44 @@
   };
   function clamp(n,min,max){return Math.min(max,Math.max(min,n));}
   function sane(n,lo,hi,def){var v=Number(n);return Number.isFinite(v)?clamp(v,lo,hi):def;}
-  function makeId(prefix){return prefix+"-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,9);}
   function freshPose(){
     var pose={};PARTS.forEach(function(p){pose[p.id]={x:p.base[0],y:p.base[1],rotation:0};});return pose;
   }
-  function normalizePose(input){
-    var pose=freshPose();input=input&&typeof input==="object"?input:{};
-    PARTS.forEach(function(piece){
-      var value=input[piece.id]||{};
-      pose[piece.id]={x:sane(value.x,-600,600,pose[piece.id].x),
-        y:sane(value.y,-600,600,pose[piece.id].y),rotation:sane(value.rotation,-180,180,0)};
-    });
-    return pose;
-  }
-  function createDefaultPoseLibrary(){
-    var labels={neutra:"Neutra",aceno:"Aceno",corrida:"Corrida",sentada:"Sentada",danca:"Dança"};
-    return Object.keys(PRESETS).map(function(key){
-      var pose=freshPose();applyPreset({pose:pose},key);
-      return {id:"preset-"+key,name:labels[key],pose:pose,builtIn:true};
-    });
-  }
-  function normalizePoseLibrary(raw){
-    if(!raw||raw.format!=="gacha-pose-library-v1"||raw.version!==1||!Array.isArray(raw.poses)||raw.poses.length>100)
-      throw new Error("Biblioteca de poses inválida. Esperado gacha-pose-library-v1 com até 100 poses.");
-    var ids=new Set();
-    return raw.poses.map(function(entry,index){
-      entry=entry&&typeof entry==="object"?entry:{};
-      var id=String(entry.id||("pose-"+index)).replace(/[^a-z0-9_-]/gi,"").slice(0,80)||("pose-"+index);
-      while(ids.has(id))id=makeId("pose");ids.add(id);
-      var name=String(entry.name||("Pose "+(index+1))).trim().slice(0,50)||("Pose "+(index+1));
-      return {id:id,name:name,pose:normalizePose(entry.pose),builtIn:!!entry.builtIn};
-    });
-  }
-  function createPoseSnapshot(name,character){
-    if(!character)throw new Error("Selecione um personagem para salvar a pose.");
-    var label=String(name||"").trim().slice(0,50);
-    if(!label)throw new Error("Informe um nome para a pose.");
-    return {id:makeId("pose"),name:label,pose:normalizePose(character.pose),builtIn:false};
-  }
-  function applySavedPose(character,snapshot){
-    if(!character||!snapshot||typeof snapshot!=="object")return false;
-    character.pose=normalizePose(snapshot.pose);return true;
-  }
+  function copyPose(pose){return JSON.parse(JSON.stringify(pose));}
+  function newPoseEntry(name,pose){return {id:"pose-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:String(name).slice(0,50),pose:copyPose(pose)};}
   function makeCharacter(index){
     return {id:"person-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),
       name:"Personagem "+String(index+1).padStart(2,"0"),skin:"#f9eadd",
-      pose:freshPose(), mirrored:false};
+      pose:freshPose(), workingPose:freshPose(), savedPoses:[], mirrored:false};
   }
   function freshProject(){
     var slots=Array(SLOT_COUNT).fill(null);slots[0]=makeCharacter(0);
-    return {format:"gacha-body-v1",version:2,slots:slots,poses:createDefaultPoseLibrary()};
+    return {format:"gacha-body-v1",version:1,slots:slots};
   }
   function safeCharacter(obj,index){
     if(!obj||typeof obj!=="object")return null;
-    var p=normalizePose(obj.pose);
+    var p=freshPose(), input=obj.pose&&typeof obj.pose==="object"?obj.pose:{};
+    PARTS.forEach(function(piece){
+      var q=input[piece.id]||{};
+      p[piece.id]={x:sane(q.x,-600,600,p[piece.id].x),y:sane(q.y,-600,600,p[piece.id].y),rotation:sane(q.rotation,-180,180,0)};
+    });
+    var work={pose:input};
+    if(obj.workingPose && typeof obj.workingPose==="object") work.pose=obj.workingPose;
+    var w=freshPose();PARTS.forEach(function(piece){var q=work.pose[piece.id]||{};w[piece.id]={x:sane(q.x,-600,600,p[piece.id].x),y:sane(q.y,-600,600,p[piece.id].y),rotation:sane(q.rotation,-180,180,p[piece.id].rotation)};});
+    var entries=Array.isArray(obj.savedPoses)?obj.savedPoses.slice(0,40):[];
+    var savedPoses=entries.filter(function(v){return v&&typeof v==="object"&&v.pose;}).map(function(v,i){
+      var po=freshPose();PARTS.forEach(function(part){var q=v.pose[part.id]||{};po[part.id]={x:sane(q.x,-600,600,part.base[0]),y:sane(q.y,-600,600,part.base[1]),rotation:sane(q.rotation,-180,180,0)};});
+      return {id:String(v.id||("saved-"+i)).slice(0,80),name:String(v.name||("Pose "+(i+1))).slice(0,50),pose:po};
+    });
     var color=typeof obj.skin==="string"&&/^#[0-9a-f]{6}$/i.test(obj.skin)?obj.skin:"#f9eadd";
     return {id:String(obj.id||("slot-"+index)).slice(0,100),
       name:String(obj.name||("Personagem "+(index+1))).slice(0,60),
-      skin:color,pose:p,mirrored:!!obj.mirrored};
+      skin:color,pose:p,workingPose:w,savedPoses:savedPoses,mirrored:!!obj.mirrored};
   }
   function normalize(raw){
-    if(!raw||raw.format!=="gacha-body-v1"||![1,2].includes(raw.version)||!Array.isArray(raw.slots)||raw.slots.length!==SLOT_COUNT)
-      throw new Error("Formato inválido. Esperado gacha-body-v1 versão 1 ou 2 com 16 slots.");
-    var poses=raw.version===1?createDefaultPoseLibrary():normalizePoseLibrary({
-      format:"gacha-pose-library-v1",version:1,poses:Array.isArray(raw.poses)?raw.poses:[]
-    });
-    return {format:"gacha-body-v1",version:2,slots:raw.slots.map(safeCharacter),poses:poses};
+    if(!raw||raw.format!=="gacha-body-v1"||raw.version!==1||!Array.isArray(raw.slots)||raw.slots.length!==SLOT_COUNT)
+      throw new Error("Formato inválido. Esperado gacha-body-v1 com 16 slots.");
+    return {format:"gacha-body-v1",version:1,slots:raw.slots.map(safeCharacter)};
   }
   function rotation(a){var c=Math.cos(a*Math.PI/180),s=Math.sin(a*Math.PI/180);return [c,s,-s,c,0,0];}
   function mul(m,n){return [m[0]*n[0]+m[2]*n[1],m[1]*n[0]+m[3]*n[1],
@@ -126,11 +98,10 @@
   }
   function jointPositions(character){
     var matrices=transforms(character),result={};
-    PARTS.forEach(function(piece){
-      if(!piece.joint)return;
-      result[piece.id]={parent:point(matrices[piece.parent],piece.joint.parent),
-        child:point(matrices[piece.id],piece.joint.child)};
-    });
+    PARTS.forEach(function(piece){if(piece.joint)result[piece.id]={
+      parent:point(matrices[piece.parent],piece.joint.parent),
+      child:point(matrices[piece.id],piece.joint.child)
+    };});
     return result;
   }
   function esc(value){return String(value).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -138,10 +109,10 @@
     options=options||{};
     if(!character)return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1122 1995"></svg>';
     var preview=!!options.preview,editor=!!options.editor;
-    var h=preview?1995:HEIGHT,yShift=preview?290:0;
+    var h=preview?1616:HEIGHT,yShift=preview?115:0;
     var m=transforms(character);
     var rootTransform=(character.mirrored?"translate(1122 0) scale(-1 1) ":"")+"translate(0 "+yShift+")";
-    var svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+WIDTH+' '+h+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Corpo chibi articulado">';
+    var svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+(preview?'107 0 909 1616':'0 0 '+WIDTH+' '+h)+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Corpo chibi articulado">';
     svg+='<defs><linearGradient id="skinShade" x1="0" y1="0" x2="1" y2=".55"><stop stop-color="#ffffff" stop-opacity=".43"/><stop offset=".68" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#8c4f38" stop-opacity=".13"/></linearGradient></defs>';
     if(editor&&options.grid){
       svg+='<defs><pattern id="grid" width="56" height="56" patternUnits="userSpaceOnUse"><path d="M56 0H0V56" fill="none" stroke="#bcb5d8" stroke-opacity=".24" stroke-width="2"/></pattern></defs><rect width="1122" height="1402" fill="url(#grid)"/>';
@@ -155,7 +126,7 @@
     svg+='<g transform="matrix('+m.head.map(function(v){return +v.toFixed(5);}).join(" ")+')"><path d="M415 230 Q431 222 432 246 Q434 260 425 256" stroke="#793936" stroke-width="4" fill="none" pointer-events="none"/></g>';
     if(editor&&options.joints){
       PARTS.forEach(function(p){
-        var pos=point(m[p.id],p.pivot);
+        var pos=point(m[p.id],p.joint?p.joint.child:p.pivot);
         svg+='<g data-part="'+p.id+'" class="rig-joint"><circle data-part="'+p.id+'" cx="'+pos[0]+'" cy="'+pos[1]+'" r="'+(p.id===options.selected?17:12)+'" fill="'+(p.id===options.selected?"#ffcf7b":"#bcafff")+'" stroke="#362c59" stroke-width="5"/><circle cx="'+pos[0]+'" cy="'+pos[1]+'" r="3.8" fill="#272040" pointer-events="none"/></g>';
       });
     }
@@ -167,8 +138,7 @@
   }
   var api={WIDTH:WIDTH,HEIGHT:HEIGHT,SLOT_COUNT:SLOT_COUNT,PARTS:PARTS,BY_ID:BY_ID,PRESETS:PRESETS,
     DRAW_ORDER:DRAW_ORDER,PATHS:PATHS,makeCharacter:makeCharacter,freshProject:freshProject,
-    freshPose:freshPose,normalizePose:normalizePose,normalize:normalize,normalizePoseLibrary:normalizePoseLibrary,
-    createPoseSnapshot:createPoseSnapshot,applySavedPose:applySavedPose,renderSVG:renderSVG,applyPreset:applyPreset,
+    freshPose:freshPose,copyPose:copyPose,newPoseEntry:newPoseEntry,normalize:normalize,renderSVG:renderSVG,applyPreset:applyPreset,
     transforms:transforms,jointPositions:jointPositions,point:point,mul:mul,rotation:rotation,tr:tr,esc:esc,clamp:clamp};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   root.GachaCore=api;

@@ -1,49 +1,46 @@
-# Gacha V4 — Criador de Corpo & Pose
+# Gacha V4 — Criador de Corpo e Pose
 
-Editor desktop para personagens chibi com **16 slots (2×8)**, prévia 9:16 e rig articulado por partes.
+Editor desktop em português para personagens chibi, com 16 slots, prévia oficial em 9:16 e estúdio independente de montagem por peças.
 
 ## Começar
-Requer Node.js 20+.
+
+Requer Node.js 20 ou superior.
 
 ```bash
-npm install
+npm ci
 npm start
 ```
 
-Modo navegador (sem Electron): abra `index.html` em um navegador moderno; o estado usa localStorage.
+## Fluxo de edição
 
-## Recursos do MVP
-- 16 slots independentes com criar, copiar, renomear e excluir;
-- folha de **10 peças vetorizadas da imagem fornecida**, de modo que as articulações possam ser editadas separadamente;
-- edição por arraste (mover / girar), pontos de conexão, propriedades numéricas, simetria e presets de pose;
-- prévia vertical 9:16, desfazer/refazer, auto-salvamento local, importação/exportação JSON e PNG transparente;
-- Electron com preload isolado, diálogos de arquivo e salvamento atômico no perfil do usuário.
-- biblioteca de poses com miniaturas, aplicar, salvar, renomear, duplicar, excluir e importar/exportar;
-- ajuste numérico ao digitar, registrado como uma única operação de desfazer.
+A tela **Personagens** mostra os 16 slots e a pose publicada. **Corpo / Pose** abre o estúdio: ajustes, presets e poses carregadas alteram somente `workingPose`. Use **Aplicar ao personagem** para publicar a pose; voltar à tela inicial preserva o rascunho.
 
-O projeto editável agora usa `gacha-body-v1` versão 2. Projetos versão 1 são migrados ao abrir, mantendo os 16 slots e adicionando as cinco poses iniciais. A biblioteca exportada usa o formato separado `gacha-pose-library-v1`; nenhum desses formatos representa o esquema de timeline do editor de vídeo.
+O estúdio inicia em **Mover**. Arraste qualquer peça; `R` alterna para girar e `V` para mover. Setas deslocam 1 px e Shift+seta desloca 10 px. Os campos X, Y e ângulo aceitam edição decimal contínua e registram uma ação de undo. Poses salvas ficam associadas ao personagem selecionado e são carregadas como rascunho.
+
+## Dados e segurança
+
+Projetos usam `format: gacha-body-v1`, versão 1, com 16 slots. Cada personagem contém `pose` (publicada), `workingPose` (rascunho independente) e `savedPoses` (até 40 entradas). Projetos antigos sem rascunho ou poses salvas são normalizados a partir de `pose`. A prévia inicial e a exportação PNG usam apenas a pose publicada.
+
+O Electron mantém `contextIsolation`, sandbox e `nodeIntegration: false`. JSON importado é validado antes de ser salvo; arquivos de usuário ficam no perfil local. Este projeto é separado do editor de vídeo Gacha V4 e não afirma compatibilidade direta com o formato de timeline V13.
 
 ## Verificação
 
 ```bash
 npm run check
 npm test
-npm run test:e2e
+npm run ui-test
 ```
 
-O teste Electron cobre os slots, arraste e rotação de articulações, undo/redo, biblioteca de poses, JSON, PNG com alpha e recuperação após reinício. As capturas abaixo foram geradas pelo Electron nas larguras lógicas de 1366×768 e 1920×1080:
+Os testes cobrem a geometria de juntas nos cinco presets, normalização e segurança do JSON, navegação entre páginas, rascunho versus pose publicada, edição numérica, poses salvas, undo/redo, arraste direto, preview 9:16 e capturas reais do Electron.
 
-![Gacha V4 Electron em 1366 por 768](artifacts/electron-1366x768.png)
+Capturas do smoke:
 
-![Gacha V4 Electron em 1920 por 1080](artifacts/electron-1920x1080.png)
+![Tela de personagens em 1366 por 768](artifacts/ui-home-1366.png)
 
-## Arquitetura
-- `src/core.js`: migração de esquema, rig hierárquico, pivôs, biblioteca de poses e renderer SVG puro.
-- `src/renderer.js`: interface, controles contínuos, histórico, persistência e operações da biblioteca.
-- `electron/main.cjs`, `electron/preload.cjs`: camada desktop.
-- `test/electron.e2e.cjs`: interação real do Electron, exportação, persistência e capturas responsivas.
-- `AGENTS.md`: tarefas e contratos de continuação para o Codex.
+![Estúdio de pose em 1366 por 768](artifacts/ui-pose-1366.png)
 
-**Importante:** projeto de criação de personagens separado do Gacha Editor V4 de timelines. Exporta seu formato editável `gacha-body-v1`; compatibilidade com `schema_version: 3` e `character_tracks` do editor de vídeo é uma etapa futura descrita no AGENTS.md.
+![Tela de personagens em 1920 por 1080](artifacts/ui-home-1920.png)
 
-Os contornos SVG foram derivados da imagem-base fornecida pelo autor. Não estão incluídos cabelo, rosto ou roupas por enquanto.
+## Limites atuais
+
+O rig usa dez contornos vetoriais; cabelo, rosto detalhado, roupas e pipeline de assets por peça ainda precisam ser implementados. Não há adaptador de exportação para o formato de timeline do editor de vídeo.

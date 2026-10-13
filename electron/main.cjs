@@ -12,9 +12,8 @@ function safeName(name,ext){
 function validateText(data){
  if(typeof data!=="string"||Buffer.byteLength(data)>5*1024*1024)throw new Error("Arquivo muito grande.");
  const parsed=JSON.parse(data);
-  const project=parsed.format==="gacha-body-v1"&&[1,2].includes(parsed.version)&&Array.isArray(parsed.slots)&&parsed.slots.length===16;
-  const poses=parsed.format==="gacha-pose-library-v1"&&parsed.version===1&&Array.isArray(parsed.poses)&&parsed.poses.length<=100;
-  if(!project&&!poses)throw new Error("Formato de projeto ou biblioteca de poses inválido.");
+  const project=parsed.format==="gacha-body-v1"&&parsed.version===1&&Array.isArray(parsed.slots)&&parsed.slots.length===16;
+  if(!project)throw new Error("Formato de projeto inválido. Esperado gacha-body-v1 versão 1 com 16 slots.");
  return data;
 }
 function createWindow(){

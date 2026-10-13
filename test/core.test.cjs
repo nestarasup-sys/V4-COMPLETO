@@ -29,23 +29,15 @@ test("poses change rig without changing shape data",()=>{
 test("JSON roundtrip and rejects incompatible formats",()=>{
  const p=core.freshProject();const output=core.normalize(JSON.parse(JSON.stringify(p)));
  assert.equal(output.slots[0].name,p.slots[0].name);
- assert.equal(output.version,2);assert.equal(output.poses.length,5);
+ assert.equal(output.version,1);assert.equal(output.slots.length,16);
  assert.throws(()=>core.normalize({format:"v3",slots:[]}));
 });
-test("version 1 projects migrate without losing characters and receive starter poses",()=>{
+test("version 1 project normalization preserves characters and draft pose data",()=>{
  const project=core.freshProject();project.slots[2]=core.makeCharacter(2);project.slots[2].pose.armRU.rotation=-37;
  const old={format:"gacha-body-v1",version:1,slots:project.slots};
  const migrated=core.normalize(old);
- assert.equal(migrated.version,2);assert.equal(migrated.slots[2].pose.armRU.rotation,-37);
- assert.deepEqual(migrated.poses.map(pose=>pose.name),["Neutra","Aceno","Corrida","Sentada","Dança"]);
-});
-test("custom pose snapshots are isolated, bounded, and safe to reimport",()=>{
- const character=core.makeCharacter(0);character.pose.head.rotation=23;
- const saved=core.createPoseSnapshot("Aceno pessoal",character);character.pose.head.rotation=90;
- assert.equal(saved.pose.head.rotation,23);
- const imported=core.normalizePoseLibrary({format:"gacha-pose-library-v1",version:1,poses:[saved]});
- core.applySavedPose(character,imported[0]);assert.equal(character.pose.head.rotation,23);
- assert.throws(()=>core.normalizePoseLibrary({format:"gacha-pose-library-v1",version:1,poses:Array(101).fill(saved)}));
+ assert.equal(migrated.version,1);assert.equal(migrated.slots[2].pose.armRU.rotation,-37);
+ assert.deepEqual(migrated.slots[2].workingPose,project.slots[2].workingPose);
 });
 test("rejects untrusted geometry values and escapes names",()=>{
  const p=core.freshProject();p.slots[0].pose.head.rotation=99999;p.slots[0].name='<script>alert(1)</script>';
@@ -54,7 +46,33 @@ test("rejects untrusted geometry values and escapes names",()=>{
 });
 test("renderer supports editor and 9:16 preview",()=>{
  const ch=core.makeCharacter(0);
- assert.ok(core.renderSVG(ch,{preview:true}).includes("1995"));
+ assert.ok(core.renderSVG(ch,{preview:true}).includes("107 0 909 1616"));
  assert.ok(core.renderSVG(ch,{editor:true,joints:true}).includes("rig-joint"));
  assert.ok(core.renderSVG(ch,{}).includes("viewBox"));
+});
+
+
+test("edits to working pose do not change the published pose",()=>{
+ const ch=core.makeCharacter(0);
+ ch.workingPose.armLU.x=99;
+ assert.notEqual(ch.workingPose.armLU.x,ch.pose.armLU.x);
+ const restored=core.normalize({format:"gacha-body-v1",version:1,slots:[ch,...Array(15).fill(null)]});
+ assert.equal(restored.slots[0].workingPose.armLU.x,99);
+ assert.equal(restored.slots[0].pose.armLU.x,ch.pose.armLU.x);
+});
+test("old character projects migrate to independent working pose",()=>{
+ const project=core.freshProject();
+ delete project.slots[0].workingPose;delete project.slots[0].savedPoses;
+ const migrated=core.normalize(project).slots[0];
+ assert.deepEqual(migrated.workingPose,migrated.pose);
+ assert.deepEqual(migrated.savedPoses,[]);
+});
+test("pose presets save, reload and apply explicitly",()=>{
+ const ch=core.makeCharacter(0);
+ core.applyPreset({pose:ch.workingPose},"aceno");
+ const saved=core.newPoseEntry("Meu aceno",ch.workingPose);
+ ch.savedPoses.push(saved);
+ assert.equal(ch.pose.armRU.rotation,0);
+ ch.pose=core.copyPose(saved.pose);
+ assert.equal(ch.pose.armRU.rotation,-55);
 });
