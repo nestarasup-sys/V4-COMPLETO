@@ -43,6 +43,15 @@
   function freshPose(){
     var pose={};PARTS.forEach(function(p){pose[p.id]={x:p.base[0],y:p.base[1],rotation:0};});return pose;
   }
+  function normalizePose(input){
+    var pose=freshPose();input=input&&typeof input==="object"?input:{};
+    PARTS.forEach(function(part){
+      var value=input[part.id]&&typeof input[part.id]==="object"?input[part.id]:{};
+      pose[part.id]={x:sane(value.x,-600,600,part.base[0]),
+        y:sane(value.y,-600,600,part.base[1]),rotation:sane(value.rotation,-180,180,0)};
+    });
+    return pose;
+  }
   function copyPose(pose){return JSON.parse(JSON.stringify(pose));}
   function newPoseEntry(name,pose){return {id:"pose-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:String(name).slice(0,50),pose:copyPose(pose)};}
   function makeCharacter(index){
@@ -138,7 +147,7 @@
   }
   var api={WIDTH:WIDTH,HEIGHT:HEIGHT,SLOT_COUNT:SLOT_COUNT,PARTS:PARTS,BY_ID:BY_ID,PRESETS:PRESETS,
     DRAW_ORDER:DRAW_ORDER,PATHS:PATHS,makeCharacter:makeCharacter,freshProject:freshProject,
-    freshPose:freshPose,copyPose:copyPose,newPoseEntry:newPoseEntry,normalize:normalize,renderSVG:renderSVG,applyPreset:applyPreset,
+    freshPose:freshPose,copyPose:copyPose,newPoseEntry:newPoseEntry,normalizePose:normalizePose,normalize:normalize,renderSVG:renderSVG,applyPreset:applyPreset,
     transforms:transforms,jointPositions:jointPositions,point:point,mul:mul,rotation:rotation,tr:tr,esc:esc,clamp:clamp};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   root.GachaCore=api;

@@ -15,7 +15,7 @@ npm start
 
 A tela **Personagens** mostra os 16 slots e a pose publicada. **Corpo / Pose** abre o estúdio: ajustes, presets e poses carregadas alteram somente `workingPose`. Use **Aplicar ao personagem** para publicar a pose; voltar à tela inicial preserva o rascunho.
 
-O estúdio inicia em **Mover**. Arraste qualquer peça; `R` alterna para girar e `V` para mover. Setas deslocam 1 px e Shift+seta desloca 10 px. Os campos X, Y e ângulo aceitam edição decimal contínua e registram uma ação de undo. Poses salvas ficam associadas ao personagem selecionado e são carregadas como rascunho.
+O estúdio inicia em **Mover**. Arraste qualquer peça; `R` alterna para girar e `V` para mover. Setas deslocam 1 px e Shift+seta desloca 10 px. Os campos X, Y e ângulo aceitam edição decimal contínua e registram uma ação de undo. Poses salvas ficam associadas ao personagem selecionado, têm miniaturas e podem ser carregadas como rascunho, duplicadas, renomeadas, copiadas para outro personagem ou importadas/exportadas como `gacha-pose-v1`.
 
 ## Dados e segurança
 
@@ -31,7 +31,7 @@ npm test
 npm run ui-test
 ```
 
-Os testes cobrem a geometria de juntas nos cinco presets, normalização e segurança do JSON, navegação entre páginas, rascunho versus pose publicada, edição numérica, poses salvas, undo/redo, arraste direto, preview 9:16 e capturas reais do Electron.
+Os testes cobrem a geometria de juntas nos cinco presets, normalização e segurança do JSON, navegação entre páginas, rascunho versus pose publicada, edição numérica, CRUD/importação/exportação de poses, cópia entre personagens, undo/redo, arraste direto, preview 9:16, PNG transparente, persistência após reabrir a janela e capturas reais do Electron.
 
 Capturas do smoke:
 

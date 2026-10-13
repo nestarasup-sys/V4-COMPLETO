@@ -76,3 +76,10 @@ test("pose presets save, reload and apply explicitly",()=>{
  ch.pose=core.copyPose(saved.pose);
  assert.equal(ch.pose.armRU.rotation,-55);
 });
+test("saved poses are independent copies and imported geometry is bounded",()=>{
+ const ch=core.makeCharacter(0);ch.workingPose.head.rotation=23;
+ const entry=core.newPoseEntry("Teste",ch.workingPose);ch.workingPose.head.rotation=70;
+ assert.equal(entry.pose.head.rotation,23);
+ assert.equal(core.normalizePose({head:{x:9999,rotation:-250}}).head.x,600);
+ assert.equal(core.normalizePose({head:{x:9999,rotation:-250}}).head.rotation,-180);
+});

@@ -1,11 +1,17 @@
 "use strict";
-const {app,BrowserWindow}=require("electron");
+const {app,BrowserWindow,session}=require("electron");
 const fs=require("node:fs/promises");
 const path=require("node:path");
+const os=require("node:os");
 const assert=require("node:assert/strict");
+const testData=path.join(os.tmpdir(),"gacha-v4-ui-smoke-"+process.pid);
+const partition="persist:gacha-ui-smoke-"+process.pid;
+app.setPath("userData",testData);
+app.setPath("sessionData",path.join(testData,"session"));
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function check(){
- const win=new BrowserWindow({width:1366,height:768,show:true,backgroundColor:"#101624",webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true,partition:"ui-smoke-"+process.pid}});
+ const options={width:1366,height:768,show:true,backgroundColor:"#101624",webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true,partition}};
+ let win=new BrowserWindow(options);
  try{
   await win.loadFile(path.join(__dirname,"..","index.html"));
   await sleep(400);
@@ -17,7 +23,15 @@ async function check(){
   const dir=path.join(__dirname,"..","artifacts");await fs.mkdir(dir,{recursive:true});
   await sleep(350);
   await fs.writeFile(path.join(dir,"ui-home-1366.png"),(await win.webContents.capturePage()).toPNG());
+  await run('document.querySelector("[data-slot=\\"1\\"]").click()');
+  assert.equal(await run('window.GachaEditor.state.project.slots.filter(Boolean).length'),2,"Slot vazio cria um segundo personagem");
+  await run('document.querySelector("[data-slot=\\"0\\"]").click()');
   const initial=await run('window.GachaEditor.current().pose.head.x');
+  const projectRoundtrip=await run('window.GachaCore.normalize(JSON.parse(window.GachaEditor.serialize()))');
+  assert.equal(projectRoundtrip.slots.length,16,"JSON exportado deve poder ser reimportado sem alterar os slots");
+  assert.equal(projectRoundtrip.slots[0].workingPose.head.x,initial,"Roundtrip JSON deve manter o rascunho");
+  const alpha=await run('(function(){return new Promise((resolve,reject)=>{const url=URL.createObjectURL(new Blob([window.GachaCore.renderSVG(window.GachaEditor.current())],{type:"image/svg+xml"}));const image=new Image();image.onload=()=>{const canvas=document.createElement("canvas");canvas.width=window.GachaCore.WIDTH;canvas.height=window.GachaCore.HEIGHT;const context=canvas.getContext("2d");context.drawImage(image,0,0);const value=context.getImageData(0,0,1,1).data[3];URL.revokeObjectURL(url);resolve(value);};image.onerror=reject;image.src=url;});})()');
+  assert.equal(alpha,0,"PNG/SVG da personagem deve manter o fundo transparente");
   await run('document.querySelector("[data-action=open-pose]").click()');
   const studio=await run('({visible:!document.querySelector("#page-pose").hidden,hidden:document.querySelector("#page-home").hidden,tool:window.GachaEditor.state.tool})');
   assert.equal(studio.visible,true);assert.equal(studio.hidden,true);assert.equal(studio.tool,"move");
@@ -39,6 +53,24 @@ async function check(){
   assert.equal(saved.count,1,"Pose personalizada deve ficar salva no personagem selecionado");
   assert.equal(saved.official,initial,"Salvar pose não pode publicar o rascunho");
   assert.equal(saved.draft,17.5,"Salvar pose deve capturar o rascunho atual");
+  await run('document.querySelector("[data-action=\\"duplicate-saved:0\\"]").click()');
+  assert.equal(await run('window.GachaEditor.current().savedPoses.length'),2,"Pose salva deve ser duplicável");
+  await run('window.prompt=()=>"Pose renomeada";document.querySelector("[data-action=\\"rename-saved:1\\"]").click()');
+  assert.equal(await run('window.GachaEditor.current().savedPoses[1].name'),"Pose renomeada","Pose salva deve poder ser renomeada");
+  await run('window.__exportedPose=null;URL.createObjectURL=blob=>{window.__exportedPose=blob;return "blob:test"};URL.revokeObjectURL=()=>{};HTMLAnchorElement.prototype.click=function(){};document.querySelector("[data-action=\\"export-saved:0\\"]").click()');
+  await sleep(20);
+  const exported=await run('window.__exportedPose.text().then(JSON.parse)');
+  assert.equal(exported.format,"gacha-pose-v1","Exportação gera o formato independente de pose");
+  await run('window.__exportedPose.text().then(text=>window.__exportedPoseJson=text)');
+  await sleep(10);
+  await run('HTMLInputElement.prototype.click=function(){Object.defineProperty(this,"files",{value:[new File([window.__exportedPoseJson],"pose.json",{type:"application/json"})]});this.dispatchEvent(new Event("change"));};document.querySelector("[data-action=import-pose]").click()');
+  await sleep(30);
+  assert.equal(await run('window.GachaEditor.current().savedPoses.length'),3,"Importação adiciona a pose à biblioteca do personagem");
+  assert.equal(await run('window.GachaEditor.current().savedPoses[2].name'),"Pose de teste","Importação preserva o nome da pose");
+  await run('window.prompt=()=>"2";document.querySelector("[data-action=\\"copy-saved:0\\"]").click()');
+  const copied=await run('({count:window.GachaEditor.state.project.slots[1].savedPoses.length,official:window.GachaEditor.state.project.slots[1].pose.head.x})');
+  assert.equal(copied.count,1,"Pose deve poder ser copiada para a biblioteca de outro personagem");
+  assert.equal(copied.official,0,"Copiar pose para outro personagem não deve publicá-la");
   await run('window.GachaEditor.current().workingPose.head.x=80;document.querySelector("[data-action=\\"load-saved:0\\"]").click()');
   assert.equal(await run('window.GachaEditor.current().workingPose.head.x'),17.5,"Carregar pose salva deve restaurar apenas o rascunho");
   assert.equal(await run('window.GachaEditor.current().pose.head.x'),initial,"Carregar pose salva não pode publicar automaticamente");
@@ -63,7 +95,16 @@ async function check(){
   await run('document.querySelector("[data-action=back-home]").click()');
   win.setSize(1920,1080);await sleep(300);
   await fs.writeFile(path.join(dir,"ui-home-1920.png"),(await win.webContents.capturePage()).toPNG());
-  console.log("UI smoke OK: slots, 9:16, pose separated, editing, application, undo/redo, screenshots");
- }finally{win.destroy();}
+  await sleep(350);
+  const savedDraft=await run('window.GachaEditor.current().workingPose.head.x');
+  const previousWindow=win;win=new BrowserWindow(options);
+  await win.loadFile(path.join(__dirname,"..","index.html"));await sleep(350);previousWindow.destroy();
+  const reopened=await win.webContents.executeJavaScript('({slots:window.GachaEditor.state.project.slots.filter(Boolean).length,official:window.GachaEditor.current().pose.head.x,draft:window.GachaEditor.current().workingPose.head.x,saved:window.GachaEditor.current().savedPoses.length})',true);
+  assert.equal(reopened.slots,2,"Personagens devem persistir após fechar e reabrir a janela");
+  assert.equal(reopened.official,17.5,"Pose oficial deve persistir após reabrir");
+  assert.equal(reopened.draft,savedDraft,"Rascunho deve persistir após reabrir");
+  assert.equal(reopened.saved,3,"Biblioteca individual deve persistir após reabrir");
+  console.log("UI smoke OK: slots, preview, pose CRUD/import/export, JSON, alpha, draft isolation, undo/redo, persistence");
+ }finally{win.destroy();await session.fromPartition(partition).clearStorageData();await fs.rm(testData,{recursive:true,force:true});}
 }
 app.whenReady().then(()=>check().then(()=>app.quit()).catch(err=>{console.error(err);process.exitCode=1;app.quit();}));

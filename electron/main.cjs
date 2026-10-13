@@ -13,7 +13,8 @@ function validateText(data){
  if(typeof data!=="string"||Buffer.byteLength(data)>5*1024*1024)throw new Error("Arquivo muito grande.");
  const parsed=JSON.parse(data);
   const project=parsed.format==="gacha-body-v1"&&parsed.version===1&&Array.isArray(parsed.slots)&&parsed.slots.length===16;
-  if(!project)throw new Error("Formato de projeto inválido. Esperado gacha-body-v1 versão 1 com 16 slots.");
+  const pose=parsed.format==="gacha-pose-v1"&&parsed.version===1&&typeof parsed.name==="string"&&parsed.name.length<=50&&parsed.pose&&typeof parsed.pose==="object"&&!Array.isArray(parsed.pose);
+  if(!project&&!pose)throw new Error("JSON inválido. Esperado projeto gacha-body-v1 ou pose gacha-pose-v1.");
  return data;
 }
 function createWindow(){
@@ -35,14 +36,14 @@ app.whenReady().then(()=>{
   return true;
  });
  ipcMain.handle("file:openText",async()=>{
-  const result=await dialog.showOpenDialog({title:"Importar personagens",filters:[{name:"Projeto Gacha",extensions:["json"]}],properties:["openFile"]});
+  const result=await dialog.showOpenDialog({title:"Importar dados Gacha",filters:[{name:"JSON Gacha",extensions:["json"]}],properties:["openFile"]});
   if(result.canceled||!result.filePaths.length)return null;
   const stat=await fs.stat(result.filePaths[0]);if(stat.size>5*1024*1024)throw new Error("JSON muito grande.");
   return await fs.readFile(result.filePaths[0],"utf8");
  });
  ipcMain.handle("file:saveText",async(_e,name,data)=>{
   validateText(data);
-  const result=await dialog.showSaveDialog({title:"Exportar projeto",defaultPath:safeName(name,"json"),filters:[{name:"Projeto Gacha",extensions:["json"]}]});
+  const result=await dialog.showSaveDialog({title:"Exportar dados",defaultPath:safeName(name,"json"),filters:[{name:"JSON Gacha",extensions:["json"]}]});
   if(result.canceled||!result.filePath)return false;
   await fs.writeFile(result.filePath,data,"utf8");return true;
  });

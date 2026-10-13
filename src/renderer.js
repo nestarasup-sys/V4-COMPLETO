@@ -65,7 +65,7 @@ function renderInspector(){
 function renderSaved(){
  const ch=current();$("saved-pose-count").textContent=ch?ch.savedPoses.length:"0";
  $("saved-pose-list").innerHTML=ch&&ch.savedPoses.length?ch.savedPoses.map((entry,i)=>
-  '<div class="saved-item"><span title="'+C.esc(entry.name)+'">'+C.esc(entry.name)+'</span><button data-action="load-saved:'+i+'" title="Carregar no editor sem aplicar">Editar</button><button data-action="delete-saved:'+i+'" aria-label="Excluir '+C.esc(entry.name)+'">×</button></div>'
+  '<div class="saved-item"><div class="saved-pose-main"><span class="saved-thumb">'+C.renderSVG({...ch,pose:entry.pose},{preview:true})+'</span><span class="saved-name" title="'+C.esc(entry.name)+'">'+C.esc(entry.name)+'</span></div><div class="saved-pose-actions"><button data-action="load-saved:'+i+'" title="Carregar no editor sem aplicar">Editar</button><button data-action="duplicate-saved:'+i+'" aria-label="Duplicar '+C.esc(entry.name)+'" title="Duplicar">⧉</button><button data-action="rename-saved:'+i+'" aria-label="Renomear '+C.esc(entry.name)+'" title="Renomear">✎</button><button data-action="copy-saved:'+i+'" aria-label="Copiar '+C.esc(entry.name)+' para outro personagem" title="Copiar para outro personagem">↗</button><button data-action="export-saved:'+i+'" aria-label="Exportar '+C.esc(entry.name)+'" title="Exportar">⇩</button><button data-action="delete-saved:'+i+'" aria-label="Excluir '+C.esc(entry.name)+'" title="Excluir">×</button></div></div>'
  ).join(""):'<p class="empty-saved">Nenhuma pose salva ainda. Monte sua primeira pose e clique em Guardar.</p>';
 }
 function render(){
@@ -135,6 +135,28 @@ function savePose(){
  edit(x=>x.savedPoses.push(C.newPoseEntry(clean,x.workingPose)));
  toast("Pose \""+clean+"\" guardada. A prévia inicial não mudou.");
 }
+async function importPose(){
+ try{
+  let text;
+  if(window.desktopAPI)text=await window.desktopAPI.openText();
+  else text=await new Promise(resolve=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=()=>{const file=input.files?.[0];if(file)file.text().then(resolve).catch(()=>resolve(null));else resolve(null);};input.click();});
+  if(!text)return;
+  const data=JSON.parse(text),ch=current();
+  if(data.format!=="gacha-pose-v1"||data.version!==1||!ch)throw new Error("Arquivo não contém uma pose gacha-pose-v1 válida.");
+  if(ch.savedPoses.length>=40)throw new Error("Limite de 40 poses neste personagem.");
+  const entry=C.newPoseEntry(String(data.name||"Pose importada").trim().slice(0,50)||"Pose importada",C.normalizePose(data.pose));
+  edit(character=>{character.savedPoses.push(entry);character.workingPose=C.copyPose(entry.pose);});
+  toast("Pose importada para o rascunho e para a biblioteca do personagem.");
+ }catch(err){toast("Erro ao importar pose: "+err.message);}
+}
+async function exportPose(entry){
+ const ch=current();if(!ch)return;
+ const snapshot=entry||C.newPoseEntry(ch.name+" - rascunho",ch.workingPose);
+ const json=JSON.stringify({format:"gacha-pose-v1",version:1,name:snapshot.name,pose:C.normalizePose(snapshot.pose)},null,2);
+ if(window.desktopAPI){if(!await window.desktopAPI.saveText(filename(ch,"json").replace(/\.json$/i,"-pose.json"),json))return;}
+ else download(new Blob([json],{type:"application/json"}),filename(ch,"pose.json"));
+ toast("Pose exportada.");
+}
 function action(e){
  const b=e.target.closest("[data-action],[data-slot],[data-part-select],[data-tool]");if(!b)return;
  if(b.hasAttribute("data-slot")){selectSlot(Number(b.dataset.slot));return;}
@@ -158,6 +180,8 @@ function action(e){
  if(k==="export-json")return saveJSON();
  if(k==="export-png")return savePNG();
  if(k==="import-json")return loadJSON();
+ if(k==="import-pose")return importPose();
+ if(k==="export-pose")return exportPose();
  if(k==="reset-part")return editDraft(pose=>{const part=C.BY_ID[s.part];pose[s.part]={x:part.base[0],y:part.base[1],rotation:0};});
  if(k==="align-part")return editDraft(pose=>{const p=C.BY_ID[s.part];pose[s.part].x=p.base[0];pose[s.part].y=p.base[1];});
  if(k==="reset-pose")return editDraft((_pose,ch)=>{ch.workingPose=C.freshPose();});
@@ -176,6 +200,27 @@ function action(e){
   const saved=current()?.savedPoses[Number(k.slice(11))];if(!saved)return;
   edit(ch=>{ch.workingPose=C.copyPose(saved.pose);});toast("Pose carregada só no editor.");return;
  }
+ if(k.startsWith("duplicate-saved:")){
+  const entry=current()?.savedPoses[Number(k.slice(16))];if(!entry)return;
+  if(current().savedPoses.length>=40)return toast("Limite de 40 poses neste personagem.");
+  edit(ch=>ch.savedPoses.push(C.newPoseEntry(entry.name+" (cópia)",entry.pose)));toast("Cópia adicionada à biblioteca do personagem.");return;
+ }
+ if(k.startsWith("rename-saved:")){
+  const index=Number(k.slice(13)),entry=current()?.savedPoses[index];if(!entry)return;
+  const name=prompt("Novo nome da pose:",entry.name);if(name===null)return;
+  const clean=name.trim().slice(0,50);if(!clean)return toast("Digite um nome para a pose.");
+  edit(ch=>{ch.savedPoses[index].name=clean;});toast("Pose renomeada.");return;
+ }
+ if(k.startsWith("copy-saved:")){
+  const entry=current()?.savedPoses[Number(k.slice(11))];if(!entry)return;
+  const destination=prompt("Número do slot de destino (1–16):","");if(destination===null)return;
+  const index=Number(destination)-1,target=s.project.slots[index];
+  if(!Number.isInteger(index)||index<0||index>=C.SLOT_COUNT||!target)return toast("Escolha um slot ocupado entre 1 e 16.");
+  if(target.savedPoses.length>=40)return toast("O personagem de destino já tem 40 poses salvas.");
+  edit(()=>target.savedPoses.push(C.newPoseEntry(entry.name,entry.pose)));
+  toast("Pose copiada para "+target.name+" sem alterar a pose publicada.");return;
+ }
+ if(k.startsWith("export-saved:"))return exportPose(current()?.savedPoses[Number(k.slice(13))]);
  if(k.startsWith("delete-saved:")){
   const index=Number(k.slice(13)),ch=current();if(!ch?.savedPoses[index]||!confirm("Excluir esta pose salva?"))return;
   edit(c=>{c.savedPoses.splice(index,1);});toast("Pose excluída.");return;
