@@ -18,9 +18,9 @@
   var PARTS = [
     {id:"torso", name:"Tronco", parent:null, pivot:[559,475], base:[0,0]},
     {id:"head", name:"Cabeça", parent:"torso", pivot:[559,318], base:[0,18]},
-    {id:"armLU", name:"Braço superior E", parent:"torso", pivot:[335,332], base:[112,24]},
+    {id:"armLU", name:"Braço superior E", parent:"torso", pivot:[335,332], base:[135,58]},
     {id:"armLL", name:"Antebraço E", parent:"armLU", pivot:[257,513], base:[0,-8]},
-    {id:"armRU", name:"Braço superior D", parent:"torso", pivot:[791,332], base:[-112,24]},
+    {id:"armRU", name:"Braço superior D", parent:"torso", pivot:[791,332], base:[-135,58]},
     {id:"armRL", name:"Antebraço D", parent:"armRU", pivot:[875,513], base:[0,-8]},
     {id:"legLU", name:"Coxa E", parent:"torso", pivot:[461,686], base:[18,-15]},
     {id:"legLL", name:"Canela E", parent:"legLU", pivot:[438,960], base:[5,-22]},

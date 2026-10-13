@@ -50,7 +50,7 @@ function fileName(ch,ext){return (ch?ch.name:"gacha-v4").normalize("NFKD").repla
 function download(blob,name){var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(url);},2000);}
 async function saveJSON(){
  var txt=JSON.stringify(s.project,null,2);
- if(window.desktopAPI)await window.desktopAPI.saveText("gacha-corpo-v1.json",txt);
+ if(window.desktopAPI){if(!await window.desktopAPI.saveText("gacha-corpo-v1.json",txt))return;}
  else download(new Blob([txt],{type:"application/json"}),"gacha-corpo-v1.json");
  tell("JSON exportado.");
 }
@@ -60,7 +60,7 @@ async function savePNG(){
  try{
   var img=new Image();await new Promise(function(resolve,reject){img.onload=resolve;img.onerror=reject;img.src=url;});
   var canvas=document.createElement("canvas");canvas.width=C.WIDTH;canvas.height=C.HEIGHT;canvas.getContext("2d").drawImage(img,0,0);
-  if(window.desktopAPI)await window.desktopAPI.saveImage(fileName(current(),"png"),canvas.toDataURL("image/png"));
+  if(window.desktopAPI){if(!await window.desktopAPI.saveImage(fileName(current(),"png"),canvas.toDataURL("image/png")))return;}
   else await new Promise(function(resolve){canvas.toBlob(function(blob){download(blob,fileName(current(),"png"));resolve();},"image/png");});
   tell("PNG transparente exportado.");
  }finally{URL.revokeObjectURL(url);}
@@ -97,7 +97,7 @@ function bind(){
  $("skin-color").addEventListener("change",function(e){edit(function(ch){ch.skin=e.target.value;});});
  document.addEventListener("change",function(e){var f=e.target.dataset.poseField;if(!f||!current())return;var n=Number(e.target.value);if(!Number.isFinite(n))return;edit(function(ch){ch.pose[s.part][f]=C.clamp(n,f==="rotation"?-180:-600,f==="rotation"?180:600);});});
  var startRange=null;
- document.addEventListener("pointerdown",function(e){if(e.target.id==="rotation-slider")startRange=serialize();});
+ document.addEventListener("pointerdown",function(e){if(e.target.id==="rotation-slider")startRange=serialize();});document.addEventListener("focusin",function(e){if(e.target.id==="rotation-slider"&&!startRange)startRange=serialize();});
  document.addEventListener("input",function(e){if(e.target.id!=="rotation-slider"||!current())return;current().pose[s.part].rotation=Number(e.target.value);$("rotation-value").textContent=e.target.value+"°";draw();});
  document.addEventListener("change",function(e){if(e.target.id!=="rotation-slider")return;history(startRange||serialize());startRange=null;render();});
  ["joint","grid","snap"].forEach(function(name){$(name+"-toggle").addEventListener("change",function(e){s[name==="joint"?"joints":name]=e.target.checked;draw();});});

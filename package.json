@@ -16,7 +16,7 @@
   },
   "build": {
     "appId": "com.gachav4.bodyeditor",
-    "productName": "Gacha V4 Corpo & Pose",
+    "productName": "Gacha V4 Corpo e Pose",
     "files": [
       "index.html",
       "styles.css",
@@ -31,10 +31,14 @@
       "target": "nsis"
     },
     "linux": {
-      "target": "AppImage"
+      "target": "AppImage",
+      "category": "Graphics",
+      "desktopName": "gacha-v4-body",
+      "syncDesktopName": true
     },
     "mac": {
       "target": "dmg"
     }
-  }
+  },
+  "author": "nestarasup-sys"
 }
