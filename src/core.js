@@ -40,8 +40,47 @@
   };
   function clamp(n,min,max){return Math.min(max,Math.max(min,n));}
   function sane(n,lo,hi,def){var v=Number(n);return Number.isFinite(v)?clamp(v,lo,hi):def;}
+  function makeId(prefix){return prefix+"-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,9);}
   function freshPose(){
     var pose={};PARTS.forEach(function(p){pose[p.id]={x:p.base[0],y:p.base[1],rotation:0};});return pose;
+  }
+  function normalizePose(input){
+    var pose=freshPose();input=input&&typeof input==="object"?input:{};
+    PARTS.forEach(function(piece){
+      var value=input[piece.id]||{};
+      pose[piece.id]={x:sane(value.x,-600,600,pose[piece.id].x),
+        y:sane(value.y,-600,600,pose[piece.id].y),rotation:sane(value.rotation,-180,180,0)};
+    });
+    return pose;
+  }
+  function createDefaultPoseLibrary(){
+    var labels={neutra:"Neutra",aceno:"Aceno",corrida:"Corrida",sentada:"Sentada",danca:"Dança"};
+    return Object.keys(PRESETS).map(function(key){
+      var pose=freshPose();applyPreset({pose:pose},key);
+      return {id:"preset-"+key,name:labels[key],pose:pose,builtIn:true};
+    });
+  }
+  function normalizePoseLibrary(raw){
+    if(!raw||raw.format!=="gacha-pose-library-v1"||raw.version!==1||!Array.isArray(raw.poses)||raw.poses.length>100)
+      throw new Error("Biblioteca de poses inválida. Esperado gacha-pose-library-v1 com até 100 poses.");
+    var ids=new Set();
+    return raw.poses.map(function(entry,index){
+      entry=entry&&typeof entry==="object"?entry:{};
+      var id=String(entry.id||("pose-"+index)).replace(/[^a-z0-9_-]/gi,"").slice(0,80)||("pose-"+index);
+      while(ids.has(id))id=makeId("pose");ids.add(id);
+      var name=String(entry.name||("Pose "+(index+1))).trim().slice(0,50)||("Pose "+(index+1));
+      return {id:id,name:name,pose:normalizePose(entry.pose),builtIn:!!entry.builtIn};
+    });
+  }
+  function createPoseSnapshot(name,character){
+    if(!character)throw new Error("Selecione um personagem para salvar a pose.");
+    var label=String(name||"").trim().slice(0,50);
+    if(!label)throw new Error("Informe um nome para a pose.");
+    return {id:makeId("pose"),name:label,pose:normalizePose(character.pose),builtIn:false};
+  }
+  function applySavedPose(character,snapshot){
+    if(!character||!snapshot||typeof snapshot!=="object")return false;
+    character.pose=normalizePose(snapshot.pose);return true;
   }
   function makeCharacter(index){
     return {id:"person-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),
@@ -50,24 +89,23 @@
   }
   function freshProject(){
     var slots=Array(SLOT_COUNT).fill(null);slots[0]=makeCharacter(0);
-    return {format:"gacha-body-v1",version:1,slots:slots};
+    return {format:"gacha-body-v1",version:2,slots:slots,poses:createDefaultPoseLibrary()};
   }
   function safeCharacter(obj,index){
     if(!obj||typeof obj!=="object")return null;
-    var p=freshPose(), input=obj.pose&&typeof obj.pose==="object"?obj.pose:{};
-    PARTS.forEach(function(piece){
-      var q=input[piece.id]||{};
-      p[piece.id]={x:sane(q.x,-600,600,p[piece.id].x),y:sane(q.y,-600,600,p[piece.id].y),rotation:sane(q.rotation,-180,180,0)};
-    });
+    var p=normalizePose(obj.pose);
     var color=typeof obj.skin==="string"&&/^#[0-9a-f]{6}$/i.test(obj.skin)?obj.skin:"#f9eadd";
     return {id:String(obj.id||("slot-"+index)).slice(0,100),
       name:String(obj.name||("Personagem "+(index+1))).slice(0,60),
       skin:color,pose:p,mirrored:!!obj.mirrored};
   }
   function normalize(raw){
-    if(!raw||raw.format!=="gacha-body-v1"||raw.version!==1||!Array.isArray(raw.slots)||raw.slots.length!==SLOT_COUNT)
-      throw new Error("Formato inválido. Esperado gacha-body-v1 com 16 slots.");
-    return {format:"gacha-body-v1",version:1,slots:raw.slots.map(safeCharacter)};
+    if(!raw||raw.format!=="gacha-body-v1"||![1,2].includes(raw.version)||!Array.isArray(raw.slots)||raw.slots.length!==SLOT_COUNT)
+      throw new Error("Formato inválido. Esperado gacha-body-v1 versão 1 ou 2 com 16 slots.");
+    var poses=raw.version===1?createDefaultPoseLibrary():normalizePoseLibrary({
+      format:"gacha-pose-library-v1",version:1,poses:Array.isArray(raw.poses)?raw.poses:[]
+    });
+    return {format:"gacha-body-v1",version:2,slots:raw.slots.map(safeCharacter),poses:poses};
   }
   function rotation(a){var c=Math.cos(a*Math.PI/180),s=Math.sin(a*Math.PI/180);return [c,s,-s,c,0,0];}
   function mul(m,n){return [m[0]*n[0]+m[2]*n[1],m[1]*n[0]+m[3]*n[1],
@@ -129,7 +167,8 @@
   }
   var api={WIDTH:WIDTH,HEIGHT:HEIGHT,SLOT_COUNT:SLOT_COUNT,PARTS:PARTS,BY_ID:BY_ID,PRESETS:PRESETS,
     DRAW_ORDER:DRAW_ORDER,PATHS:PATHS,makeCharacter:makeCharacter,freshProject:freshProject,
-    freshPose:freshPose,normalize:normalize,renderSVG:renderSVG,applyPreset:applyPreset,
+    freshPose:freshPose,normalizePose:normalizePose,normalize:normalize,normalizePoseLibrary:normalizePoseLibrary,
+    createPoseSnapshot:createPoseSnapshot,applySavedPose:applySavedPose,renderSVG:renderSVG,applyPreset:applyPreset,
     transforms:transforms,jointPositions:jointPositions,point:point,mul:mul,rotation:rotation,tr:tr,esc:esc,clamp:clamp};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   root.GachaCore=api;
