@@ -56,8 +56,9 @@
   <div class="pose-layout">
     <aside class="rig-sidebar surface">
       <div class="rig-heading"><span class="eyebrow">ESQUELETO 2D</span><h3>Peças do corpo</h3><p>Selecione uma peça aqui ou diretamente no canvas.</p></div>
+      <div class="rig-view-tabs" role="tablist" aria-label="Visualização do painel do esqueleto"><button type="button" data-action="rig-view:parts" class="active" role="tab" aria-selected="true">Peças</button><button type="button" data-action="rig-view:layers" role="tab" aria-selected="false">Camadas</button></div>
       <div id="part-list" class="part-list"></div>
-      <section class="layers-panel" aria-labelledby="layers-title"><div class="layers-heading"><div><span class="eyebrow">ORDEM DE DESENHO</span><h3 id="layers-title">Camadas</h3></div><span class="layers-hint">Topo = frente</span></div><div id="layer-list" class="layer-list" aria-label="Camadas do personagem"></div></section>
+      <section id="layers-panel" class="layers-panel" aria-labelledby="layers-title" hidden><div class="layers-heading"><div><span class="eyebrow">ORDEM DE DESENHO</span><h3 id="layers-title">Camadas</h3></div><span class="layers-hint">Topo = frente</span></div><div id="layer-list" class="layer-list" aria-label="Camadas do personagem"></div></section>
       <div class="rig-help"><span>⌘</span> Arraste para mover · <kbd>R</kbd> gira · <kbd>V</kbd> move</div>
     </aside>
     <section class="canvas-pane">

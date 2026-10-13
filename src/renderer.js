@@ -2,7 +2,7 @@
 "use strict";
 const C=window.GachaCore;
 const $=id=>document.getElementById(id);
-const s={project:C.freshProject(),slot:0,part:"head",page:"home",tool:"move",joints:true,grid:true,snap:false,zoom:100,undo:[],redo:[]};
+const s={project:C.freshProject(),slot:0,part:"head",page:"home",rigView:"parts",tool:"move",joints:true,grid:true,snap:false,zoom:100,undo:[],redo:[]};
 let clock,sliderStart=null,numericStart=null;
 const current=()=>s.project.slots[s.slot];
 const editing=()=>{const ch=current();return ch?{...ch,pose:ch.workingPose}:null;};
@@ -127,6 +127,10 @@ function render(){
  $("pose-person-name").textContent=ch?ch.name:"Sem personagem";
  if(ch){$("character-name").value=ch.name;$("skin-color").value=ch.skin;}
  draw();renderInspector();renderLayers();renderSaved();
+ $("part-list").hidden=s.rigView!=="parts";$("layers-panel").hidden=s.rigView!=="layers";
+ document.querySelectorAll("[data-action^='rig-view:']").forEach(button=>{
+  const active=button.dataset.action==="rig-view:"+s.rigView;button.classList.toggle("active",active);button.setAttribute("aria-selected",String(active));
+ });
  $("undo-btn").disabled=s.undo.length===0;$("redo-btn").disabled=s.redo.length===0;
  document.querySelectorAll(".requires-character").forEach(b=>b.disabled=!ch);
  document.querySelectorAll("[data-tool]").forEach(b=>b.classList.toggle("active",b.dataset.tool===s.tool));
@@ -215,6 +219,7 @@ async function action(e){
  if(b.hasAttribute("data-tool")){s.tool=b.dataset.tool;render();return;}
  const k=b.dataset.action;
  if(k==="undo"||k==="redo")return restore(k);
+ if(k.startsWith("rig-view:")){s.rigView=k.slice(9);render();return;}
  if(k==="open-pose"){if(current())showPage("pose");return;}
  if(k==="back-home"){showPage("home");return;}
  if(k==="new"){const i=s.project.slots.findIndex(v=>!v);return i===-1?toast("Os 16 slots já estão ocupados."):selectSlot(i);}
