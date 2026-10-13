@@ -2,7 +2,7 @@
 "use strict";
 const C=window.GachaCore;
 const $=id=>document.getElementById(id);
-const s={project:C.freshProject(),slot:0,part:"head",page:"home",rigView:"parts",tool:"move",joints:true,grid:true,snap:false,zoom:100,undo:[],redo:[]};
+const s={project:C.freshProject(),slot:0,part:"head",page:"home",wardrobeCategory:"tops",rigView:"parts",tool:"move",joints:true,grid:true,snap:false,zoom:100,undo:[],redo:[]};
 let clock,sliderStart=null,numericStart=null;
 const current=()=>s.project.slots[s.slot];
 const editing=()=>{const ch=current();return ch?{...ch,pose:ch.workingPose}:null;};
@@ -49,9 +49,9 @@ function askConfirm(title,message,confirmText="Excluir"){
 }
 function showPage(page){
  s.page=page;
- $("page-home").hidden=page!=="home";$("page-pose").hidden=page!=="pose";
+ $("page-home").hidden=page!=="home";$("page-pose").hidden=page!=="pose";$("page-wardrobe").hidden=page!=="wardrobe";
  $("breadcrumb-text").textContent=page==="home"?"Seu estúdio":"Personagens";
- $("breadcrumb-current").textContent=page==="home"?"Personagens":"Corpo / Pose";
+ $("breadcrumb-current").textContent=page==="home"?"Personagens":page==="pose"?"Corpo / Pose":"Guarda-roupa";
  render();
 }
 function draw(){
@@ -122,13 +122,29 @@ function renderHomePoseSlots(){
   '<button type="button" class="home-pose-slot empty" data-action="open-pose" aria-label="Slot de pose '+(index+1)+' vazio. Abrir editor para salvar pose" '+(!ch?"disabled":"")+'><span class="home-pose-empty-icon">＋</span><span class="home-pose-slot-name">Vazio</span><span class="home-pose-slot-index">'+String(index+1).padStart(2,"0")+'</span></button>'
  ).join("");
 }
+function renderWardrobe(){
+ const ch=current(),category=s.wardrobeCategory;
+ $("wardrobe-person-name").textContent=ch?ch.name:"Sem personagem";
+ $("wardrobe-preview").innerHTML=ch?C.renderSVG(ch,{preview:true}):'<p class="placeholder">Selecione um personagem.</p>';
+ document.querySelectorAll("[data-action^='wardrobe-category:']").forEach(button=>{
+  const active=button.dataset.action==="wardrobe-category:"+category;button.classList.toggle("active",active);button.setAttribute("aria-selected",String(active));
+ });
+ const isTop=category==="tops",assets=isTop?C.WARDROBE_ART.tops:C.WARDROBE_ART.sleeves;
+ $("wardrobe-category-title").textContent=isTop?"Regatas":"Mangas";
+ $("wardrobe-item-count").textContent=isTop?assets.length+" itens":assets.length+" pares";
+ $("wardrobe-options").innerHTML=assets.map((item,index)=>{
+  const label=(isTop?"Regata ":"Mangas ")+String(index+1).padStart(2,"0");
+  const artwork=isTop?'<span class="wardrobe-option-art"><img src="'+item.image+'" alt="'+label+'"></span>':'<span class="wardrobe-option-art wardrobe-sleeve-pair"><img src="'+item[0].image+'" alt="Manga esquerda '+String(index+1).padStart(2,"0")+'"><img src="'+item[1].image+'" alt="Manga direita '+String(index+1).padStart(2,"0")+'"></span>';
+  return '<article class="wardrobe-item" aria-label="'+label+'">'+artwork+'<span class="wardrobe-option-name">'+label+'</span></article>';
+ }).join("");
+}
 function render(){
  const ch=current();
  $("slot-grid").innerHTML=s.project.slots.map((item,i)=>'<button type="button" class="slot '+(s.slot===i?"selected ":"")+(item?"occupied":"empty")+'" data-slot="'+i+'" aria-label="Slot '+(i+1)+'" aria-pressed="'+(s.slot===i)+'">'+
   (item?'<span class="slot-figure">'+C.renderSVG(item,{preview:true})+'</span>':'<span class="slot-add">+</span>')+
   '<span class="slot-index">'+String(i+1).padStart(2,"0")+'</span></button>').join("");
  $("slot-count").textContent=s.project.slots.filter(Boolean).length+"/16";
- renderHomePoseSlots();
+ renderHomePoseSlots();renderWardrobe();
  $("hero-name").textContent=ch?ch.name:"Slot vazio";
  $("slot-position").textContent="SLOT "+String(s.slot+1).padStart(2,"0");
  $("pose-person-name").textContent=ch?ch.name:"Sem personagem";
@@ -228,7 +244,9 @@ async function action(e){
  if(k==="undo"||k==="redo")return restore(k);
  if(k.startsWith("rig-view:")){s.rigView=k.slice(9);render();return;}
  if(k==="open-pose"){if(current())showPage("pose");return;}
+ if(k==="open-wardrobe"){if(current())showPage("wardrobe");return;}
  if(k==="back-home"){showPage("home");return;}
+ if(k.startsWith("wardrobe-category:")){s.wardrobeCategory=k.slice(18);render();return;}
  if(k==="new"){const i=s.project.slots.findIndex(v=>!v);return i===-1?toast("Os 16 slots já estão ocupados."):selectSlot(i);}
  if(k.startsWith("apply-home-pose:")){
   const entry=s.project.poseSlots[Number(k.slice(16))];if(!entry||!current())return;

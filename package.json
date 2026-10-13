@@ -7,10 +7,10 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.cjs",
-    "check": "node --check src/core.js && node --check src/renderer.js && node --check src/drag.js && node --check electron/main.cjs && node --check electron/preload.cjs",
+    "check": "node --check src/core.js && node --check src/wardrobe-art.js && node --check src/renderer.js && node --check src/drag.js && node --check electron/main.cjs && node --check electron/preload.cjs",
     "dist": "electron-builder",
-    "ui-test": "electron --no-sandbox test/ui-smoke.cjs",
-    "test:e2e": "electron --no-sandbox test/electron.e2e.cjs",
+    "ui-test": "electron --no-sandbox --disable-gpu --disable-gpu-compositing --disable-software-rasterizer test/ui-smoke.cjs",
+    "test:e2e": "electron --no-sandbox --disable-gpu --disable-gpu-compositing --disable-software-rasterizer test/electron.e2e.cjs",
     "test:production": "node test/production-smoke.cjs"
   },
   "devDependencies": {

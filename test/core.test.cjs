@@ -22,6 +22,14 @@ test("all ten body pieces with parent joints",()=>{
  const ch=core.makeCharacter(0);assert.equal(core.PARTS.length,10);assert.equal(Object.keys(ch.pose).length,10);
  const matrix=core.transforms(ch);assert.equal(Object.keys(matrix).length,10);
 });
+test("wardrobe catalog contains the original sheet assets without modifying the character preview",()=>{
+ const character=core.makeCharacter(0);
+ assert.equal(core.WARDROBE_ART.tops.length,8,"catálogo mostra as oito regatas da folha");
+ assert.equal(core.WARDROBE_ART.sleeves.length,8,"catálogo mostra os oito pares de mangas");
+ core.WARDROBE_ART.tops.concat(...core.WARDROBE_ART.sleeves).forEach(piece=>assert.match(piece.image,/^data:image\/png;base64,/));
+ const svg=core.renderSVG(character);
+ assert.equal(svg.includes("data-clothing"),false,"as peças ficam no catálogo e não são encaixadas no personagem");
+});
 test("neutral sprite assembly closes limb gaps and migrates untouched old defaults",()=>{
  const neutral=core.freshPose();
  assert.deepEqual(neutral.armLL,{x:34,y:-30,rotation:0},"antebraço sobrepõe o braço superior pelo recorte real do PNG");

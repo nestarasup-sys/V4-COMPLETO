@@ -23,6 +23,8 @@ O estúdio inicia em **Mover**. Arraste qualquer peça; `R` alterna para girar e
 
 Poses salvas ficam associadas ao personagem selecionado, têm miniaturas e podem ser carregadas como rascunho, duplicadas, renomeadas, copiadas para outro personagem ou importadas/exportadas como `gacha-pose-v1`. Salvar, renomear, copiar e excluir usam diálogos do próprio app. As poses salvas também ocupam até 12 slots compartilhados na tela inicial; personagens novos recebem a pose do slot 01 quando preenchido.
 
+A página **Guarda-roupa** abre separadamente com o personagem selecionado à esquerda e o catálogo à direita. A primeira folha contém oito regatas e oito pares de mangas, exibidos em categorias. Nesta etapa, as peças ficam no catálogo e não são aplicadas nem encaixadas no personagem. A folha original está em `assets/wardrobe/source-sheet.png`; para regenerar os recortes transparentes e `src/wardrobe-art.js`, rode `python scripts/extract-wardrobe-assets.py` com Pillow instalado.
+
 ## Dados e segurança
 
 Projetos usam `format: gacha-body-v1`, versão 1, com 16 slots. Cada personagem contém `pose` (publicada), `workingPose` (rascunho independente), `savedPoses` (até 40 entradas), `layerOrder` e `hiddenParts`. O projeto tem também 12 `poseSlots` compartilhados. Projetos antigos sem rascunho, camadas ou slots compartilhados são normalizados sem alterar a pose publicada; poses já salvas podem preencher a nova grade. A prévia inicial e a exportação PNG usam apenas a pose publicada e respeitam a ordem e a visibilidade das camadas.
@@ -56,7 +58,11 @@ Capturas do smoke:
 
 ![Tela de personagens em 1920 por 1080](artifacts/ui-home-1920.png)
 
+![Catálogo do guarda-roupa em 1366 por 768](artifacts/ui-wardrobe-1366.png)
+
+![Catálogo dos pares de mangas em 1366 por 768](artifacts/ui-wardrobe-sleeves-1366.png)
+
 ## Limites atuais
 
-O rig ainda não tem cabelo, rosto detalhado, roupas ou importador interativo de assets. Não há adaptador de exportação para o formato de timeline do editor de vídeo.
+O catálogo inicial mostra roupas sem aplicá-las ao rig; encaixe e composição de roupas são etapas futuras. O rig ainda não tem cabelo, rosto detalhado ou importador interativo de assets. Não há adaptador de exportação para o formato de timeline do editor de vídeo.
 

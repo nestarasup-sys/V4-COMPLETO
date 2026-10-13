@@ -2,6 +2,7 @@
   "use strict";
   var WIDTH = 1122, HEIGHT = 1402, SLOT_COUNT = 16, POSE_SLOT_COUNT = 12;
   var BODY_ART=root.GachaBodyArt||(typeof require==="function"?require("./body-art.js"):null);
+  var WARDROBE_ART=root.GachaWardrobeArt||(typeof require==="function"?require("./wardrobe-art.js"):null);
   var PARTS = [
     {id:"torso", name:"Tronco", parent:null, pivot:[559,475], base:[0,0]},
     // Anchor coordinates share the author's PNG pixel space. Child base offsets
@@ -164,7 +165,7 @@
     var preset=PRESETS[name];if(!preset)return false;
     PARTS.forEach(function(p){character.pose[p.id].rotation=preset[p.id]||0;});return true;
   }
-  var api={WIDTH:WIDTH,HEIGHT:HEIGHT,SLOT_COUNT:SLOT_COUNT,POSE_SLOT_COUNT:POSE_SLOT_COUNT,PARTS:PARTS,BY_ID:BY_ID,PRESETS:PRESETS,
+  var api={WIDTH:WIDTH,HEIGHT:HEIGHT,SLOT_COUNT:SLOT_COUNT,POSE_SLOT_COUNT:POSE_SLOT_COUNT,PARTS:PARTS,BY_ID:BY_ID,PRESETS:PRESETS,WARDROBE_ART:WARDROBE_ART,
     DRAW_ORDER:DRAW_ORDER,ART:BODY_ART,makeCharacter:makeCharacter,freshProject:freshProject,
     freshPose:freshPose,copyPose:copyPose,newPoseEntry:newPoseEntry,normalizePose:normalizePose,normalize:normalize,renderSVG:renderSVG,applyPreset:applyPreset,
     transforms:transforms,jointPositions:jointPositions,point:point,mul:mul,rotation:rotation,tr:tr,esc:esc,clamp:clamp};

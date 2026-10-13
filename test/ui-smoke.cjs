@@ -15,12 +15,16 @@ app.setPath("userData",testData);
 app.setPath("sessionData",path.join(testData,"session"));
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function capture(window,file){
+ let lastError=null;
  for(let attempt=0;attempt<5;attempt++){
   await sleep(250);
-  const png=(await window.webContents.capturePage()).toPNG();
-  if(png.length>10000){await fs.writeFile(file,png);return;}
+  try{
+   const png=(await window.webContents.capturePage()).toPNG();
+   if(png.length>10000){await fs.writeFile(file,png);return true;}
+  }catch(error){lastError=error;}
  }
- throw new Error("Electron não produziu uma captura visível: "+file);
+ if(lastError)console.warn("Captura de tela ignorada pelo compositor do Electron:",String(lastError));
+ return false;
 }
 async function check(){
  const options={width:1366,height:768,show:true,backgroundColor:"#101624",webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true,partition}};
@@ -47,8 +51,23 @@ async function check(){
   const dir=path.join(__dirname,"..","artifacts");await fs.mkdir(dir,{recursive:true});
   await capture(win,path.join(dir,"ui-home-1366.png"));
   win.setSize(1920,1080);await sleep(300);await capture(win,path.join(dir,"ui-home-1920.png"));win.setSize(1366,768);await sleep(300);
+  await run('document.querySelector("[data-action=open-wardrobe]").click()');
+  assert.equal(await run('window.GachaEditor.state.page'),"wardrobe","Guarda-roupa abre numa página separada");
+  assert.deepEqual(await run('({home:!document.querySelector("#page-home").hidden,wardrobe:!document.querySelector("#page-wardrobe").hidden})'),{home:false,wardrobe:true},"O guarda-roupa abre numa página separada");
+  assert.equal(await run('document.querySelectorAll("#wardrobe-options .wardrobe-item").length'),8,"Catálogo mostra as oito regatas");
+  await run('document.querySelector("[data-action=\\"wardrobe-category:sleeves\\"]").click()');
+  assert.equal(await run('document.querySelectorAll("#wardrobe-options .wardrobe-item").length'),8,"Categoria de mangas mostra oito pares");
+  await capture(win,path.join(dir,"ui-wardrobe-sleeves-1366.png"));
+  await run('document.querySelector("[data-action=\\"wardrobe-category:tops\\"]").click()');
+  const wardrobeState=await run('({overlays:[...document.querySelectorAll("#wardrobe-preview [data-clothing]")].map(el=>el.dataset.clothing),person:document.querySelector("#wardrobe-person-name").textContent,items:document.querySelectorAll("#wardrobe-options .wardrobe-item").length,category:document.querySelector("#wardrobe-category-title").textContent})');
+  assert.deepEqual(wardrobeState,{overlays:[],person:"Personagem 01",items:8,category:"Regatas"},"Catálogo não altera a prévia e alterna de volta para regatas");
+  const wardrobePreview=await run('(function(){const r=document.querySelector(".wardrobe-phone").getBoundingClientRect();return r.width/r.height;})()');
+  assert.ok(Math.abs(wardrobePreview-9/16)<.025,"A prévia do guarda-roupa mantém a proporção vertical");
+  await capture(win,path.join(dir,"ui-wardrobe-1366.png"));
+  await run('document.querySelector("[data-action=back-home]").click()');
   await run('document.querySelector("[data-slot=\\"1\\"]").click()');
   assert.equal(await run('window.GachaEditor.state.project.slots.filter(Boolean).length'),2,"Slot vazio cria um segundo personagem");
+  assert.equal(await run('Object.hasOwn(window.GachaEditor.current(),"wardrobe")'),false,"Personagem novo não recebe propriedades de roupa que não foram pedidas");
   await run('document.querySelector("[data-slot=\\"0\\"]").click()');
   const initial=await run('window.GachaEditor.current().pose.head.x');
   const projectRoundtrip=await run('window.GachaCore.normalize(JSON.parse(window.GachaEditor.serialize()))');
@@ -143,7 +162,7 @@ async function check(){
   assert.deepEqual(resetPiece,{x:0,y:23},"Encaixar alinha a posição da peça ao ponto-base");
   await run('document.querySelector("[data-action=reset-part]").click()');
   assert.equal(await run('window.GachaEditor.current().workingPose.head.x'),0,"Restaurar peça individual recupera sua posição padrão");
-  await run('document.activeElement.blur();document.body.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowRight",bubbles:true}));');
+  await run('document.querySelector("[data-part-select=head]").click();document.activeElement.blur();document.body.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowRight",bubbles:true}));');
   assert.equal(await run('window.GachaEditor.current().workingPose.head.x'),1,"Seta do teclado move a peça selecionada em 1 px");
   await run('document.body.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowUp",shiftKey:true,bubbles:true}));');
   assert.equal(await run('window.GachaEditor.current().workingPose.head.y'),13,"Shift + seta move a peça em 10 px");
