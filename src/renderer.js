@@ -109,11 +109,16 @@ function registerPoseSlot(entry){
  const index=slots.findIndex(slot=>!slot);if(index<0)return false;
  slots[index]={id:entry.id,name:entry.name,pose:C.copyPose(entry.pose)};return true;
 }
+function removePoseEverywhere(id){
+ s.project.slots.forEach(character=>{if(character)character.savedPoses=character.savedPoses.filter(entry=>entry.id!==id);});
+ const index=s.project.poseSlots.findIndex(entry=>entry&&entry.id===id);
+ if(index>=0){s.project.poseSlots.splice(index,1);s.project.poseSlots.push(null);}
+}
 function renderHomePoseSlots(){
  const slots=s.project.poseSlots||Array(C.POSE_SLOT_COUNT).fill(null),ch=current(),previewBase=ch||C.makeCharacter(0);
  $("home-pose-count").textContent=slots.filter(Boolean).length+"/"+C.POSE_SLOT_COUNT;
  $("home-pose-slots").innerHTML=slots.map((entry,index)=>entry?
-  '<button type="button" class="home-pose-slot occupied" data-action="apply-home-pose:'+index+'" aria-label="Aplicar pose '+C.esc(entry.name)+' ao personagem selecionado" title="'+C.esc(entry.name)+'" '+(!ch?"disabled":"")+'><span class="home-pose-thumb">'+C.renderSVG({...previewBase,pose:entry.pose},{preview:true})+'</span><span class="home-pose-slot-name">'+C.esc(entry.name)+'</span><span class="home-pose-slot-index">'+String(index+1).padStart(2,"0")+'</span></button>':
+  '<div class="home-pose-entry"><button type="button" class="home-pose-slot occupied" data-action="apply-home-pose:'+index+'" aria-label="Aplicar pose '+C.esc(entry.name)+' ao personagem selecionado" title="'+C.esc(entry.name)+'" '+(!ch?"disabled":"")+'><span class="home-pose-thumb">'+C.renderSVG({...previewBase,pose:entry.pose},{preview:true})+'</span><span class="home-pose-slot-name">'+C.esc(entry.name)+'</span><span class="home-pose-slot-index">'+String(index+1).padStart(2,"0")+'</span></button><button type="button" class="home-pose-delete" data-action="delete-home-pose:'+index+'" aria-label="Excluir pose '+C.esc(entry.name)+'" title="Excluir pose">×</button></div>':
   '<button type="button" class="home-pose-slot empty" data-action="open-pose" aria-label="Slot de pose '+(index+1)+' vazio. Abrir editor para salvar pose" '+(!ch?"disabled":"")+'><span class="home-pose-empty-icon">＋</span><span class="home-pose-slot-name">Vazio</span><span class="home-pose-slot-index">'+String(index+1).padStart(2,"0")+'</span></button>'
  ).join("");
 }
@@ -229,6 +234,10 @@ async function action(e){
   const entry=s.project.poseSlots[Number(k.slice(16))];if(!entry||!current())return;
   edit(ch=>{ch.pose=C.copyPose(entry.pose);ch.workingPose=C.copyPose(entry.pose);});toast("Pose aplicada ao personagem.");return;
  }
+ if(k.startsWith("delete-home-pose:")){
+  const entry=s.project.poseSlots[Number(k.slice(17))];if(!entry||!await askConfirm("Excluir pose","A pose será removida das bibliotecas rápida e pessoais vinculadas. As poses seguintes avançarão para ocupar o espaço.","Excluir pose"))return;
+  edit(()=>removePoseEverywhere(entry.id));toast("Pose excluída; os slots foram reorganizados.");return;
+ }
  if(k.startsWith("layer-front:")||k.startsWith("layer-back:")){
   const id=k.slice(k.indexOf(":")+1),step=k.startsWith("layer-front:")?-1:1;
   edit(ch=>{const stack=ch.layerOrder.slice().reverse(),index=stack.indexOf(id),next=index+step;if(index<0||next<0||next>=stack.length)return;[stack[index],stack[next]]=[stack[next],stack[index]];ch.layerOrder=stack.reverse();},true);return;
@@ -292,7 +301,7 @@ async function action(e){
  if(k.startsWith("export-saved:"))return exportPose(current()?.savedPoses[Number(k.slice(13))]);
  if(k.startsWith("delete-saved:")){
   const index=Number(k.slice(13)),ch=current(),entry=ch?.savedPoses[index];if(!entry||!await askConfirm("Excluir pose","Esta pose será removida da biblioteca rápida também.","Excluir pose"))return;
-  edit(c=>{c.savedPoses.splice(index,1);const slot=s.project.poseSlots.findIndex(item=>item&&item.id===entry.id);if(slot>=0)s.project.poseSlots[slot]=null;});toast("Pose excluída.");return;
+  edit(()=>removePoseEverywhere(entry.id));toast("Pose excluída.");return;
  }
 }
 function bind(){
