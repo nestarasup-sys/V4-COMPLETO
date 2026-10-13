@@ -9,6 +9,18 @@ test("all ten body pieces with parent joints",()=>{
  const ch=core.makeCharacter(0);assert.equal(core.PARTS.length,10);assert.equal(Object.keys(ch.pose).length,10);
  const matrix=core.transforms(ch);assert.equal(Object.keys(matrix).length,10);
 });
+test("hierarchical joint anchors stay connected through parent and child rotation",()=>{
+ const ch=core.makeCharacter(0);
+ for(const preset of Object.keys(core.PRESETS)){
+  core.applyPreset(ch,preset);
+  const joints=core.jointPositions(ch);
+  for(const part of core.PARTS.filter(piece=>piece.joint)){
+   const {parent,child}=joints[part.id];
+   assert.ok(Math.hypot(parent[0]-child[0],parent[1]-child[1])<1e-6,
+    `${part.name}: pivô filho deve coincidir com a junta do pai no preset ${preset}`);
+  }
+ }
+});
 test("poses change rig without changing shape data",()=>{
  const ch=core.makeCharacter(0);const before=core.transforms(ch).armRU.join(",");
  core.applyPreset(ch,"aceno");assert.notEqual(core.transforms(ch).armRU.join(","),before);

@@ -17,15 +17,17 @@
   };
   var PARTS = [
     {id:"torso", name:"Tronco", parent:null, pivot:[559,475], base:[0,0]},
-    {id:"head", name:"Cabeça", parent:"torso", pivot:[559,318], base:[0,18]},
-    {id:"armLU", name:"Braço superior E", parent:"torso", pivot:[335,332], base:[135,58]},
-    {id:"armLL", name:"Antebraço E", parent:"armLU", pivot:[257,513], base:[0,-8]},
-    {id:"armRU", name:"Braço superior D", parent:"torso", pivot:[791,332], base:[-135,58]},
-    {id:"armRL", name:"Antebraço D", parent:"armRU", pivot:[875,513], base:[0,-8]},
-    {id:"legLU", name:"Coxa E", parent:"torso", pivot:[461,686], base:[18,-15]},
-    {id:"legLL", name:"Canela E", parent:"legLU", pivot:[438,960], base:[5,-22]},
-    {id:"legRU", name:"Coxa D", parent:"torso", pivot:[682,686], base:[-17,-15]},
-    {id:"legRL", name:"Canela D", parent:"legRU", pivot:[700,960], base:[-5,-22]}
+    // Os pontos de junta usam o mesmo espaço de coordenadas dos contornos.
+    // Para cada filha, child + base deve coincidir com o ponto no pai.
+    {id:"head", name:"Cabeça", parent:"torso", pivot:[559,318], base:[0,23], joint:{parent:[559,341],child:[559,318]}},
+    {id:"armLU", name:"Braço superior E", parent:"torso", pivot:[335,332], base:[135,58], joint:{parent:[470,390],child:[335,332]}},
+    {id:"armLL", name:"Antebraço E", parent:"armLU", pivot:[257,513], base:[0,-8], joint:{parent:[257,505],child:[257,513]}},
+    {id:"armRU", name:"Braço superior D", parent:"torso", pivot:[791,332], base:[-135,58], joint:{parent:[656,390],child:[791,332]}},
+    {id:"armRL", name:"Antebraço D", parent:"armRU", pivot:[875,513], base:[0,-8], joint:{parent:[875,505],child:[875,513]}},
+    {id:"legLU", name:"Coxa E", parent:"torso", pivot:[461,686], base:[18,-15], joint:{parent:[479,671],child:[461,686]}},
+    {id:"legLL", name:"Canela E", parent:"legLU", pivot:[438,960], base:[5,-22], joint:{parent:[443,938],child:[438,960]}},
+    {id:"legRU", name:"Coxa D", parent:"torso", pivot:[682,686], base:[-17,-15], joint:{parent:[665,671],child:[682,686]}},
+    {id:"legRL", name:"Canela D", parent:"legRU", pivot:[700,960], base:[-5,-22], joint:{parent:[695,938],child:[700,960]}}
   ];
   var BY_ID = Object.fromEntries(PARTS.map(function(p){ return [p.id,p]; }));
   var DRAW_ORDER=["legLL","legRL","legLU","legRU","armLU","armRU","armLL","armRL","torso","head"];
@@ -84,6 +86,15 @@
     }
     PARTS.forEach(function(p){resolve(p.id);});return memo;
   }
+  function jointPositions(character){
+    var matrices=transforms(character),result={};
+    PARTS.forEach(function(piece){
+      if(!piece.joint)return;
+      result[piece.id]={parent:point(matrices[piece.parent],piece.joint.parent),
+        child:point(matrices[piece.id],piece.joint.child)};
+    });
+    return result;
+  }
   function esc(value){return String(value).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
   function renderSVG(character,options){
     options=options||{};
@@ -119,7 +130,7 @@
   var api={WIDTH:WIDTH,HEIGHT:HEIGHT,SLOT_COUNT:SLOT_COUNT,PARTS:PARTS,BY_ID:BY_ID,PRESETS:PRESETS,
     DRAW_ORDER:DRAW_ORDER,PATHS:PATHS,makeCharacter:makeCharacter,freshProject:freshProject,
     freshPose:freshPose,normalize:normalize,renderSVG:renderSVG,applyPreset:applyPreset,
-    transforms:transforms,point:point,mul:mul,rotation:rotation,tr:tr,esc:esc,clamp:clamp};
+    transforms:transforms,jointPositions:jointPositions,point:point,mul:mul,rotation:rotation,tr:tr,esc:esc,clamp:clamp};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   root.GachaCore=api;
 })(typeof window!=="undefined"?window:globalThis);
