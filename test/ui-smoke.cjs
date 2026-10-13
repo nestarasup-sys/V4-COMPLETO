@@ -9,6 +9,14 @@ const partition="persist:gacha-ui-smoke-"+process.pid;
 app.setPath("userData",testData);
 app.setPath("sessionData",path.join(testData,"session"));
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function capture(window,file){
+ for(let attempt=0;attempt<5;attempt++){
+  await sleep(250);
+  const png=(await window.webContents.capturePage()).toPNG();
+  if(png.length>10000){await fs.writeFile(file,png);return;}
+ }
+ throw new Error("Electron não produziu uma captura visível: "+file);
+}
 async function check(){
  const options={width:1366,height:768,show:true,backgroundColor:"#101624",webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true,partition}};
  let win=new BrowserWindow(options);
@@ -21,8 +29,7 @@ async function check(){
   const dimensions=await run('(function(){const r=document.querySelector(".phone-shell").getBoundingClientRect();return {w:r.width,h:r.height};})()');
   assert.ok(Math.abs(dimensions.w/dimensions.h-9/16)<.025,"Prévia vertical deve manter 9:16");
   const dir=path.join(__dirname,"..","artifacts");await fs.mkdir(dir,{recursive:true});
-  await sleep(350);
-  await fs.writeFile(path.join(dir,"ui-home-1366.png"),(await win.webContents.capturePage()).toPNG());
+  await capture(win,path.join(dir,"ui-home-1366.png"));
   await run('document.querySelector("[data-slot=\\"1\\"]").click()');
   assert.equal(await run('window.GachaEditor.state.project.slots.filter(Boolean).length'),2,"Slot vazio cria um segundo personagem");
   await run('document.querySelector("[data-slot=\\"0\\"]").click()');
@@ -74,8 +81,7 @@ async function check(){
   await run('window.GachaEditor.current().workingPose.head.x=80;document.querySelector("[data-action=\\"load-saved:0\\"]").click()');
   assert.equal(await run('window.GachaEditor.current().workingPose.head.x'),17.5,"Carregar pose salva deve restaurar apenas o rascunho");
   assert.equal(await run('window.GachaEditor.current().pose.head.x'),initial,"Carregar pose salva não pode publicar automaticamente");
-  await sleep(320);
-  await fs.writeFile(path.join(dir,"ui-pose-1366.png"),(await win.webContents.capturePage()).toPNG());
+  await capture(win,path.join(dir,"ui-pose-1366.png"));
   await run('document.querySelector("[data-action=back-home]").click()');
   assert.equal(await run('window.GachaEditor.current().pose.head.x'),initial);
   await run('document.querySelector("[data-action=open-pose]").click()');
@@ -93,8 +99,8 @@ async function check(){
   assert.notEqual(dragResult,valueBeforeDrag,"Arrastar diretamente a cabeça deve alterar sua posição");
   assert.equal(await run('window.GachaEditor.current().pose.head.x'),17.5,"Arrastar rascunho não pode mudar prévia oficial");
   await run('document.querySelector("[data-action=back-home]").click()');
-  win.setSize(1920,1080);await sleep(300);
-  await fs.writeFile(path.join(dir,"ui-home-1920.png"),(await win.webContents.capturePage()).toPNG());
+  win.setSize(1920,1080);
+  await capture(win,path.join(dir,"ui-home-1920.png"));
   await sleep(350);
   const savedDraft=await run('window.GachaEditor.current().workingPose.head.x');
   const previousWindow=win;win=new BrowserWindow(options);
