@@ -65,3 +65,4 @@
 .feature-body{display:flex;align-items:flex-start;flex-direction:column}
 .tool-title{display:flex;flex-direction:column;gap:4px}
 .nudge-pad .empty{visibility:hidden}
+.layer-select{cursor:grab}.layer-select:active{cursor:grabbing}.layer-index{margin-left:auto;color:#8fa0bb;font-size:9px;font-variant-numeric:tabular-nums}

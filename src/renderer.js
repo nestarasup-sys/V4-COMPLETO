@@ -7,18 +7,20 @@ let clock,sliderStart=null,numericStart=null;
 const current=()=>s.project.slots[s.slot];
 const editing=()=>{const ch=current();return ch?{...ch,pose:ch.workingPose}:null;};
 const serialize=()=>JSON.stringify(s.project);
-function autosave(){
- clearTimeout(clock);clock=setTimeout(()=>{
+let persistChain=Promise.resolve();
+function autosave(immediate=false){
+ clearTimeout(clock);const persist=()=>{
   const data=serialize();
   try{localStorage.setItem("gacha-v4-body-project",data);}catch(err){console.warn(err);}
-  if(window.desktopAPI)window.desktopAPI.autosave(data).catch(console.warn);
- },260);
+  if(window.desktopAPI)persistChain=persistChain.then(()=>window.desktopAPI.autosave(data)).catch(console.warn);
+ };
+ if(immediate)persist();else clock=setTimeout(persist,260);
 }
-function history(before){
+function history(before,immediate=false){
  if(before===serialize())return;
- s.undo.push(before);if(s.undo.length>80)s.undo.shift();s.redo.length=0;autosave();
+ s.undo.push(before);if(s.undo.length>80)s.undo.shift();s.redo.length=0;autosave(immediate);
 }
-function edit(fn){if(!current())return;const prev=serialize();fn(current());history(prev);render();}
+function edit(fn,immediate=false){if(!current())return;const prev=serialize();fn(current());history(prev,immediate);render();}
 function editDraft(fn){edit(ch=>fn(ch.workingPose,ch));}
 function toast(msg){
  const el=$("toast");el.textContent=msg;el.classList.add("active");
@@ -95,8 +97,8 @@ function renderLayers(){
  const hidden=new Set(ch.hiddenParts||[]),frontToBack=ch.layerOrder.slice().reverse();
  $("layer-list").innerHTML=frontToBack.map((id,index)=>{
   const part=C.BY_ID[id],visible=!hidden.has(id);
-  return '<div class="layer-row '+(s.part===id?"selected":"")+'">'+
-   '<button type="button" class="layer-select" data-layer-select="'+id+'" title="Selecionar '+C.esc(part.name)+'"><span class="layer-grip">⠿</span><span class="layer-name">'+C.esc(part.name)+'</span></button>'+
+  return '<div class="layer-row '+(s.part===id?"selected":"")+'" data-layer-row="'+id+'">'+
+   '<button type="button" class="layer-select" draggable="true" data-layer-select="'+id+'" title="Arraste para reordenar ou clique para selecionar"><span class="layer-grip" aria-hidden="true">⠿</span><span class="layer-name">'+C.esc(part.name)+'</span><span class="layer-index">'+String(index+1).padStart(2,"0")+'</span></button>'+
    '<div class="layer-actions"><button type="button" data-action="layer-front:'+id+'" aria-label="Trazer '+C.esc(part.name)+' para frente" title="Trazer para frente" '+(index===0?"disabled":"")+'>↑</button><button type="button" data-action="layer-back:'+id+'" aria-label="Enviar '+C.esc(part.name)+' para trás" title="Enviar para trás" '+(index===frontToBack.length-1?"disabled":"")+'>↓</button><button type="button" class="layer-visibility '+(visible?"visible":"hidden")+'" data-action="toggle-layer:'+id+'" aria-label="'+(visible?"Ocultar ":"Mostrar ")+C.esc(part.name)+'" aria-pressed="'+visible+'" title="'+(visible?"Ocultar":"Mostrar")+'">'+(visible?"◉":"○")+'</button></div></div>';
  }).join("");
 }
@@ -228,11 +230,11 @@ async function action(e){
   edit(ch=>{ch.pose=C.copyPose(entry.pose);ch.workingPose=C.copyPose(entry.pose);});toast("Pose aplicada ao personagem.");return;
  }
  if(k.startsWith("layer-front:")||k.startsWith("layer-back:")){
-  const id=k.slice(k.indexOf(":")+1),step=k.startsWith("layer-front:")?1:-1;
-  edit(ch=>{const index=ch.layerOrder.indexOf(id),next=index+step;if(index<0||next<0||next>=ch.layerOrder.length)return;[ch.layerOrder[index],ch.layerOrder[next]]=[ch.layerOrder[next],ch.layerOrder[index]];});return;
+  const id=k.slice(k.indexOf(":")+1),step=k.startsWith("layer-front:")?-1:1;
+  edit(ch=>{const stack=ch.layerOrder.slice().reverse(),index=stack.indexOf(id),next=index+step;if(index<0||next<0||next>=stack.length)return;[stack[index],stack[next]]=[stack[next],stack[index]];ch.layerOrder=stack.reverse();},true);return;
  }
  if(k.startsWith("toggle-layer:")){
-  const id=k.slice(13);edit(ch=>{const index=ch.hiddenParts.indexOf(id);if(index>=0)ch.hiddenParts.splice(index,1);else ch.hiddenParts.push(id);});return;
+  const id=k.slice(13);edit(ch=>{const index=ch.hiddenParts.indexOf(id);if(index>=0)ch.hiddenParts.splice(index,1);else ch.hiddenParts.push(id);},true);return;
  }
  if(k==="clone"){
   const i=s.project.slots.findIndex(v=>!v);if(!current()||i<0)return toast("Não há slots livres.");
@@ -289,12 +291,23 @@ async function action(e){
  }
  if(k.startsWith("export-saved:"))return exportPose(current()?.savedPoses[Number(k.slice(13))]);
  if(k.startsWith("delete-saved:")){
-  const index=Number(k.slice(13)),ch=current();if(!ch?.savedPoses[index]||!await askConfirm("Excluir pose","Esta pose será removida da biblioteca rápida também.","Excluir pose"))return;
+  const index=Number(k.slice(13)),ch=current(),entry=ch?.savedPoses[index];if(!entry||!await askConfirm("Excluir pose","Esta pose será removida da biblioteca rápida também.","Excluir pose"))return;
   edit(c=>{c.savedPoses.splice(index,1);const slot=s.project.poseSlots.findIndex(item=>item&&item.id===entry.id);if(slot>=0)s.project.poseSlots[slot]=null;});toast("Pose excluída.");return;
  }
 }
 function bind(){
  document.addEventListener("click",e=>{Promise.resolve().then(()=>action(e)).catch(err=>toast("Erro: "+err.message));});
+ document.addEventListener("dragstart",e=>{
+  const handle=e.target.closest("[data-layer-select]");if(!handle)return;
+  e.dataTransfer.setData("text/plain",handle.dataset.layerSelect);e.dataTransfer.effectAllowed="move";
+ });
+ document.addEventListener("dragover",e=>{if(e.target.closest("[data-layer-row]")){e.preventDefault();e.dataTransfer.dropEffect="move";}});
+ document.addEventListener("drop",e=>{
+  const row=e.target.closest("[data-layer-row]");if(!row)return;e.preventDefault();
+  const source=e.dataTransfer.getData("text/plain"),target=row.dataset.layerRow;
+  if(!source||!target||source===target)return;
+  edit(ch=>{const stack=ch.layerOrder.slice().reverse(),from=stack.indexOf(source),to=stack.indexOf(target);if(from<0||to<0)return;stack.splice(to,0,stack.splice(from,1)[0]);ch.layerOrder=stack.reverse();},true);
+ });
  $("character-name").addEventListener("change",e=>edit(ch=>{ch.name=e.target.value.trim().slice(0,60)||ch.name;}));
  $("skin-color").addEventListener("change",e=>edit(ch=>{ch.skin=e.target.value;}));
  document.addEventListener("focusin",e=>{

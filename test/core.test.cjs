@@ -48,7 +48,12 @@ test("hierarchical joint anchors stay connected through parent and child rotatio
 test("poses change rig without changing shape data",()=>{
  const ch=core.makeCharacter(0);const before=core.transforms(ch).armRU.join(",");
  core.applyPreset(ch,"aceno");assert.notEqual(core.transforms(ch).armRU.join(","),before);
- assert.ok(core.PATHS.head.startsWith("M"));
+ assert.equal(Object.keys(core.ART).length,10,"cada parte usa um recorte do PNG original");
+ assert.ok(core.ART.head.image.startsWith("data:image/png;base64,"));
+ assert.ok(core.ART.head.shade.startsWith("data:image/png;base64,"));
+ const tinted={...ch,skin:"#123456"},svg=core.renderSVG(tinted);
+ assert.ok(svg.includes("0.07058823529411765 0 0 0 0 0.20392156862745098"),"máscara de pele deve adotar a cor escolhida sem redesenhar a arte");
+ assert.ok(svg.includes("<image data-part=\"head\""),"a renderização usa o PNG original, não o contorno vetorial refeito");
 });
 test("JSON roundtrip and rejects incompatible formats",()=>{
  const p=core.freshProject();const output=core.normalize(JSON.parse(JSON.stringify(p)));
