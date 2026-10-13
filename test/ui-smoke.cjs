@@ -143,6 +143,10 @@ async function check(){
   assert.equal(reopened.poseSlots,3,"Biblioteca rápida deve persistir após reabrir");
   assert.equal(reopened.firstPose,"Pose de teste","Primeiro slot compartilhado deve manter a pose salva");
   console.log("UI smoke OK: slots, preview, pose CRUD/import/export, JSON, alpha, draft isolation, undo/redo, persistence");
- }finally{win.destroy();await session.fromPartition(partition).clearStorageData();await fs.rm(testData,{recursive:true,force:true});}
+ }finally{
+  win.destroy();
+  try{await session.fromPartition(partition).clearStorageData();}catch(error){console.warn("UI smoke storage cleanup:",error.message);}
+  try{await fs.rm(testData,{recursive:true,force:true});}catch(error){console.warn("UI smoke profile cleanup:",error.message);}
+ }
 }
 app.whenReady().then(()=>check().then(()=>app.quit()).catch(err=>{console.error(err);process.exitCode=1;app.quit();}));
