@@ -55,7 +55,8 @@ async function check(){
   const studio=await run('({visible:!document.querySelector("#page-pose").hidden,hidden:document.querySelector("#page-home").hidden,tool:window.GachaEditor.state.tool})');
   assert.equal(studio.visible,true);assert.equal(studio.hidden,true);assert.equal(studio.tool,"move");
   assert.equal(await run('document.querySelectorAll("#layer-list .layer-row").length'),10,"O painel de camadas lista todas as peças");
-  const layerChange=await run('document.querySelector("[data-action=\\"layer-front:torso\\"]").click();({front:window.GachaEditor.current().layerOrder.indexOf("torso"),head:window.GachaEditor.current().layerOrder.indexOf("head")})');
+  await run('document.querySelector("[data-action=\\"layer-front:torso\\"]").click()');await sleep(20);
+  const layerChange=await run('({front:window.GachaEditor.current().layerOrder.indexOf("torso"),head:window.GachaEditor.current().layerOrder.indexOf("head")})');
   assert.ok(layerChange.front>layerChange.head,"Trazer camada à frente altera a ordem de desenho");
   await run('document.querySelector("[data-action=\\"layer-back:torso\\"]").click()');
   await run('document.querySelector("[data-action=\\"toggle-layer:head\\"]").click()');
