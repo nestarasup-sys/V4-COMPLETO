@@ -1,38 +1,68 @@
-# Gacha V4 — Criador de Corpo & Pose
+# Gacha V4 — Criador de Corpo e Pose
 
-Editor desktop para personagens chibi com **16 slots (2×8)**, prévia 9:16 e rig articulado por partes.
+Editor desktop em português para personagens chibi, com 16 slots, prévia oficial em 9:16 e estúdio independente de montagem por peças.
+
+## Abrir no Windows
+
+Dê duplo clique em `Abrir Gacha V4.bat` na pasta do projeto. O launcher instala as dependências se o Electron ainda não estiver instalado e abre o aplicativo. Mantenha a janela do terminal aberta enquanto testa; ela mostra qualquer mensagem de erro.
 
 ## Começar
-Requer Node.js 20+.
+
+Requer Node.js 20 ou superior.
 
 ```bash
-npm install
+npm ci
 npm start
 ```
 
-Modo navegador (sem Electron): abra `index.html` em um navegador moderno; o estado usa localStorage.
+## Fluxo de edição
 
-## Recursos do MVP
-- 16 slots independentes com criar, copiar, renomear e excluir;
-- folha de **10 peças vetorizadas da imagem fornecida**, de modo que as articulações possam ser editadas separadamente;
-- edição por arraste (mover / girar), pontos de conexão, propriedades numéricas, simetria e presets de pose;
-- prévia vertical 9:16, desfazer/refazer, auto-salvamento local, importação/exportação JSON e PNG transparente;
-- Electron com preload isolado, diálogos de arquivo e salvamento atômico no perfil do usuário.
+A tela **Personagens** mostra os 16 slots e a pose publicada. **Corpo / Pose** abre o estúdio: ajustes, presets e poses carregadas alteram somente `workingPose`. Use **Aplicar ao personagem** para publicar a pose; voltar à tela inicial preserva o rascunho.
 
-## Arquitetura
-- `src/core.js`: esquema, rig, matrizes, persistência e renderer SVG puro.
-- `src/renderer.js`: interface, editor e interação.
-- `electron/main.cjs`, `electron/preload.cjs`: camada desktop.
-- `AGENTS.md`: tarefas e contratos de continuação para o Codex.
+O estúdio inicia em **Mover**. Arraste qualquer peça; `R` alterna para girar e `V` para mover. Setas deslocam 1 px e Shift+seta desloca 10 px. Os campos X, Y e ângulo aceitam edição decimal contínua e registram uma ação de undo. As abas **Peças / Camadas** alternam entre a seleção do rig e a ordem visual; arraste uma linha ou use as setas para mover camadas para frente ou para trás. A ordem e a visibilidade são salvas automaticamente sem remover ajustes.
 
-**Importante:** projeto de criação de personagens separado do Gacha Editor V4 de timelines. Exporta seu formato editável `gacha-body-v1`; compatibilidade com `schema_version: 3` e `character_tracks` do editor de vídeo é uma etapa futura descrita no AGENTS.md.
+Poses salvas ficam associadas ao personagem selecionado, têm miniaturas e podem ser carregadas como rascunho, duplicadas, renomeadas, copiadas para outro personagem ou importadas/exportadas como `gacha-pose-v1`. Cada pose preserva a ordem e a visibilidade das camadas. Salvar, renomear, copiar e excluir usam diálogos do próprio app. As poses salvas também ocupam até 12 slots compartilhados na tela inicial. Quando o slot 03 já tem uma pose aplicada, ela é migrada como padrão para personagens novos; em projetos sem slot 03, o app usa a primeira pose compartilhada disponível.
 
-Os contornos SVG foram derivados da imagem-base fornecida pelo autor. Não estão incluídos cabelo, rosto ou roupas por enquanto.
+A página **Guarda-roupa** abre separadamente com o personagem selecionado à esquerda e o catálogo à direita. A primeira folha contém oito regatas e oito pares de mangas, exibidos em categorias. As peças podem ser vestidas, removidas e ajustadas por posição X/Y, escala, rotação e botões de movimento fino; cada personagem mantém seu próprio conjunto de roupas. A folha original está em `assets/wardrobe/source-sheet.png`; para regenerar os recortes transparentes e `src/wardrobe-art.js`, rode `python scripts/extract-wardrobe-assets.py` com Pillow instalado.
 
-## Nova experiência de edição (rodada UX)
+## Dados e segurança
 
-**Personagens** é a tela inicial: 16 slots e uma prévia 9:16 da pose oficialmente aplicada. Clique no cartão **Corpo / Pose** para entrar em um estúdio separado. Modificações do rascunho **não alteram a prévia inicial**; clique em **Aplicar ao personagem** para publicar a pose. Você pode voltar sem aplicar; seu rascunho continua salvo para editar depois.
+Projetos usam `format: gacha-body-v1`, versão 1, com 16 slots. Cada personagem contém `pose` (publicada), `workingPose` (rascunho independente), `savedPoses` (até 40 entradas), `layerOrder` e `hiddenParts`. O projeto tem também 12 `poseSlots` compartilhados. Projetos antigos sem rascunho, camadas ou slots compartilhados são normalizados sem alterar a pose publicada; poses já salvas podem preencher a nova grade. A prévia inicial e a exportação PNG usam apenas a pose publicada e respeitam a ordem e a visibilidade das camadas.
 
-No estúdio, o modo padrão é **Mover** (atalho `V`): arraste uma peça diretamente. `R` ativa **Girar**. Para encaixar, use as setas de **1 pixel**, Shift+seta para **10 pixels**, ou os campos X/Y; **Encaixar** volta a posição da peça ao seu ponto padrão sem desfazer a rotação. Os cinco presets alteram apenas o rascunho. **Guardar pose** cria uma opção na biblioteca pessoal e **Editar** carrega essa pose no estúdio, sem aplicar à prévia.
+O modelo usa os pixels da folha PNG original em `assets/body-original.png`; o recorte e a remoção do fundo verde mantêm a arte e o contorno, e uma máscara separada permite recolorir a pele sem tingir o traço. Para regenerar os recortes e mapas de imagem, instale Pillow e rode `python scripts/extract-body-assets.py`.
 
-A versão de projeto continua `gacha-body-v1`: `pose` é a pose aplicada, `workingPose` é o rascunho independente e `savedPoses` é a biblioteca por personagem. Projetos antigos sem esses campos são migrados no carregamento. A prévia e a exportação PNG utilizam `pose`, não `workingPose`.
+O Electron mantém `contextIsolation`, sandbox e `nodeIntegration: false`. JSON importado é validado antes de ser salvo; arquivos de usuário ficam no perfil local. Este projeto é separado do editor de vídeo Gacha V4 e não afirma compatibilidade direta com o formato de timeline V13.
+
+## Verificação
+
+```bash
+npm run check
+npm test
+npm run ui-test
+npm run test:e2e
+npm run dist -- --dir
+npm run test:production
+```
+
+Os testes cobrem a geometria de juntas nos cinco presets, PNG de origem e máscaras de cor, normalização e segurança do JSON, navegação entre páginas, rascunho versus pose publicada, edição numérica, CRUD/importação/exportação de poses e projeto, camadas arrastáveis e persistidas, cópia entre personagens, undo/redo, arraste e rotação diretos, snap, zoom, grade, juntas, espelhamento, preview 9:16, PNG transparente, persistência após reabrir a janela e capturas do Electron em 1366×768 e 1920×1080. `test:production` abre o pacote Windows oculto, verifica o IPC de salvamento e confere camadas e cor depois de reiniciar.
+
+Capturas do smoke:
+
+![Tela de personagens em 1366 por 768](artifacts/ui-home-1366.png)
+
+![Estúdio de pose em 1366 por 768](artifacts/ui-pose-1366.png)
+
+![Painel de camadas em 1366 por 768](artifacts/ui-layers-1366.png)
+
+![Camada movida por arrasto em 1366 por 768](artifacts/ui-layers-reordered-1366.png)
+
+![Tela de personagens em 1920 por 1080](artifacts/ui-home-1920.png)
+
+![Catálogo do guarda-roupa em 1366 por 768](artifacts/ui-wardrobe-1366.png)
+
+![Catálogo dos pares de mangas em 1366 por 768](artifacts/ui-wardrobe-sleeves-1366.png)
+
+## Limites atuais
+
+O guarda-roupa inicial inclui regatas e mangas com ajustes básicos por personagem; encaixes anatômicos independentes para cada segmento de braço e pernas ainda são etapas futuras. O rig ainda não tem cabelo, rosto detalhado ou importador interativo de assets. Não há adaptador de exportação para o formato de timeline do editor de vídeo.
+

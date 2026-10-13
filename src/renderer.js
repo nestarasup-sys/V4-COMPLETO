@@ -2,33 +2,56 @@
 "use strict";
 const C=window.GachaCore;
 const $=id=>document.getElementById(id);
-const s={project:C.freshProject(),slot:0,part:"head",page:"home",tool:"move",joints:true,grid:true,snap:false,zoom:100,undo:[],redo:[]};
-let clock,sliderStart=null;
+const s={project:C.freshProject(),slot:0,part:"head",page:"home",wardrobeCategory:"tops",rigView:"parts",tool:"move",joints:true,grid:true,snap:false,zoom:100,undo:[],redo:[]};
+let clock,sliderStart=null,numericStart=null;
 const current=()=>s.project.slots[s.slot];
 const editing=()=>{const ch=current();return ch?{...ch,pose:ch.workingPose}:null;};
 const serialize=()=>JSON.stringify(s.project);
-function autosave(){
- clearTimeout(clock);clock=setTimeout(()=>{
+let persistChain=Promise.resolve();
+function autosave(immediate=false){
+ clearTimeout(clock);const persist=()=>{
   const data=serialize();
   try{localStorage.setItem("gacha-v4-body-project",data);}catch(err){console.warn(err);}
-  if(window.desktopAPI)window.desktopAPI.autosave(data).catch(console.warn);
- },260);
+  if(window.desktopAPI)persistChain=persistChain.then(()=>window.desktopAPI.autosave(data)).catch(console.warn);
+ };
+ if(immediate)persist();else clock=setTimeout(persist,260);
 }
-function history(before){
+function history(before,immediate=false){
  if(before===serialize())return;
- s.undo.push(before);if(s.undo.length>80)s.undo.shift();s.redo.length=0;autosave();
+ s.undo.push(before);if(s.undo.length>80)s.undo.shift();s.redo.length=0;autosave(immediate);
 }
-function edit(fn){if(!current())return;const prev=serialize();fn(current());history(prev);render();}
+function edit(fn,immediate=false){if(!current())return;const prev=serialize();fn(current());history(prev,immediate);render();}
 function editDraft(fn){edit(ch=>fn(ch.workingPose,ch));}
 function toast(msg){
  const el=$("toast");el.textContent=msg;el.classList.add("active");
  clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove("active"),3000);
 }
+function showAppDialog({title,message,inputLabel=null,value="",confirmText="Confirmar"}){
+ return new Promise(resolve=>{
+  const dialog=$("app-dialog"),form=$("app-dialog-form"),input=$("app-dialog-input"),inputWrap=$("app-dialog-input-wrap");
+  const finish=result=>{form.onsubmit=null;$("app-dialog-cancel").onclick=null;dialog.oncancel=null;dialog.close();resolve(result);};
+  $("app-dialog-title").textContent=title;$("app-dialog-message").textContent=message;
+  $("app-dialog-confirm").textContent=confirmText;
+  inputWrap.hidden=inputLabel===null;
+  if(inputLabel!==null){$("app-dialog-input-label").textContent=inputLabel;input.value=value;}
+  form.onsubmit=event=>{event.preventDefault();finish(inputLabel===null?true:input.value);};
+  $("app-dialog-cancel").onclick=()=>finish(null);
+  dialog.oncancel=event=>{event.preventDefault();finish(null);};
+  dialog.showModal();
+  if(inputLabel!==null)requestAnimationFrame(()=>{input.focus();input.select();});
+ });
+}
+function askText(title,message,value,label="Nome"){
+ return showAppDialog({title,message,value,inputLabel:label,confirmText:"Salvar"});
+}
+function askConfirm(title,message,confirmText="Excluir"){
+ return showAppDialog({title,message,confirmText});
+}
 function showPage(page){
  s.page=page;
- $("page-home").hidden=page!=="home";$("page-pose").hidden=page!=="pose";
+ $("page-home").hidden=page!=="home";$("page-pose").hidden=page!=="pose";$("page-wardrobe").hidden=page!=="wardrobe";
  $("breadcrumb-text").textContent=page==="home"?"Seu estúdio":"Personagens";
- $("breadcrumb-current").textContent=page==="home"?"Personagens":"Corpo / Pose";
+ $("breadcrumb-current").textContent=page==="home"?"Personagens":page==="pose"?"Corpo / Pose":"Guarda-roupa";
  render();
 }
 function draw(){
@@ -50,7 +73,7 @@ function renderInspector(){
  $("selection-description").textContent="Arraste para posicionar ou use os controles abaixo.";
  if(!ch){$("part-tools").textContent="Selecione um personagem.";return;}
  const v=ch.workingPose[s.part];
- const field=(name,id,val)=>'<label class="control-input"><span>'+name+'</span><input type="number" step="1" min="'+(id==="rotation"?-180:-600)+'" max="'+(id==="rotation"?180:600)+'" data-pose-field="'+id+'" value="'+val+'"></label>';
+ const field=(name,id,val)=>'<label class="control-input"><span>'+name+'</span><input type="number" step="0.1" min="'+(id==="rotation"?-180:-600)+'" max="'+(id==="rotation"?180:600)+'" data-pose-field="'+id+'" value="'+val+'"></label>';
  $("part-tools").innerHTML=
   '<div class="tool-title"><span>PEÇA SELECIONADA</span><strong>'+C.esc(p.name)+'</strong></div>'+
   '<div class="rotation-heading"><span>Rotação</span><strong id="rotation-value">'+Math.round(v.rotation)+'°</strong></div>'+
@@ -65,8 +88,80 @@ function renderInspector(){
 function renderSaved(){
  const ch=current();$("saved-pose-count").textContent=ch?ch.savedPoses.length:"0";
  $("saved-pose-list").innerHTML=ch&&ch.savedPoses.length?ch.savedPoses.map((entry,i)=>
-  '<div class="saved-item"><span title="'+C.esc(entry.name)+'">'+C.esc(entry.name)+'</span><button data-action="load-saved:'+i+'" title="Carregar no editor sem aplicar">Editar</button><button data-action="delete-saved:'+i+'" aria-label="Excluir '+C.esc(entry.name)+'">×</button></div>'
+  '<div class="saved-item"><div class="saved-pose-main"><span class="saved-thumb">'+C.renderSVG({...ch,pose:entry.pose,layerOrder:entry.layerOrder,hiddenParts:entry.hiddenParts},{preview:true})+'</span><span class="saved-name" title="'+C.esc(entry.name)+'">'+C.esc(entry.name)+'</span></div><div class="saved-pose-actions"><button data-action="load-saved:'+i+'" title="Carregar no editor sem aplicar">Editar</button><button data-action="duplicate-saved:'+i+'" aria-label="Duplicar '+C.esc(entry.name)+'" title="Duplicar">⧉</button><button data-action="rename-saved:'+i+'" aria-label="Renomear '+C.esc(entry.name)+'" title="Renomear">✎</button><button data-action="copy-saved:'+i+'" aria-label="Copiar '+C.esc(entry.name)+' para outro personagem" title="Copiar para outro personagem">↗</button><button data-action="export-saved:'+i+'" aria-label="Exportar '+C.esc(entry.name)+'" title="Exportar">⇩</button><button data-action="delete-saved:'+i+'" aria-label="Excluir '+C.esc(entry.name)+'" title="Excluir">×</button></div></div>'
  ).join(""):'<p class="empty-saved">Nenhuma pose salva ainda. Monte sua primeira pose e clique em Guardar.</p>';
+}
+function renderLayers(){
+ const ch=current();
+ if(!ch){$("layer-list").innerHTML='<p class="empty-layers">Selecione um personagem para editar as camadas.</p>';return;}
+ const hidden=new Set(ch.hiddenParts||[]),frontToBack=ch.layerOrder.slice().reverse();
+ $("layer-list").innerHTML=frontToBack.map((id,index)=>{
+  const part=C.BY_ID[id],visible=!hidden.has(id);
+  return '<div class="layer-row '+(s.part===id?"selected":"")+'" data-layer-row="'+id+'">'+
+   '<button type="button" class="layer-select" draggable="true" data-layer-select="'+id+'" title="Arraste para reordenar ou clique para selecionar"><span class="layer-grip" aria-hidden="true">⠿</span><span class="layer-name">'+C.esc(part.name)+'</span><span class="layer-index">'+String(index+1).padStart(2,"0")+'</span></button>'+
+   '<div class="layer-actions"><button type="button" data-action="layer-front:'+id+'" aria-label="Trazer '+C.esc(part.name)+' para frente" title="Trazer para frente" '+(index===0?"disabled":"")+'>↑</button><button type="button" data-action="layer-back:'+id+'" aria-label="Enviar '+C.esc(part.name)+' para trás" title="Enviar para trás" '+(index===frontToBack.length-1?"disabled":"")+'>↓</button><button type="button" class="layer-visibility '+(visible?"visible":"hidden")+'" data-action="toggle-layer:'+id+'" aria-label="'+(visible?"Ocultar ":"Mostrar ")+C.esc(part.name)+'" aria-pressed="'+visible+'" title="'+(visible?"Ocultar":"Mostrar")+'">'+(visible?"◉":"○")+'</button></div></div>';
+ }).join("");
+}
+function registerPoseSlot(entry){
+ const slots=s.project.poseSlots;
+ const existing=slots.find(slot=>slot&&slot.id===entry.id);
+ if(existing){existing.name=entry.name;existing.pose=C.copyPose(entry.pose);existing.layerOrder=entry.layerOrder.slice();existing.hiddenParts=entry.hiddenParts.slice();return true;}
+ const index=slots.findIndex(slot=>!slot);if(index<0)return false;
+ slots[index]={id:entry.id,name:entry.name,pose:C.copyPose(entry.pose),layerOrder:entry.layerOrder.slice(),hiddenParts:entry.hiddenParts.slice()};return true;
+}
+function syncDefaultLayers(ch){
+ if(s.slot!==2)return;
+ if(!s.project.defaultPose)s.project.defaultPose=C.defaultPoseFor(s.project);
+ if(!s.project.defaultPose)return;
+ s.project.defaultPose.layerOrder=ch.layerOrder.slice();s.project.defaultPose.hiddenParts=ch.hiddenParts.slice();
+ s.project.slots.forEach(character=>{const saved=character&&character.savedPoses.find(item=>item.id===s.project.defaultPose.id);if(saved){saved.layerOrder=ch.layerOrder.slice();saved.hiddenParts=ch.hiddenParts.slice();}});
+ const shared=s.project.poseSlots.find(item=>item&&item.id===s.project.defaultPose.id);
+ if(shared){shared.layerOrder=ch.layerOrder.slice();shared.hiddenParts=ch.hiddenParts.slice();}
+}
+function syncDefaultPose(ch,pose){
+ if(s.slot!==2)return;
+ if(!s.project.defaultPose)s.project.defaultPose=C.defaultPoseFor(s.project);
+ if(!s.project.defaultPose)return;
+ s.project.defaultPose.pose=C.copyPose(pose);s.project.defaultPose.layerOrder=ch.layerOrder.slice();
+ s.project.defaultPose.hiddenParts=ch.hiddenParts.slice();s.project.defaultPose.sourceSlot=2;
+ s.project.slots.forEach(character=>{const saved=character&&character.savedPoses.find(item=>item.id===s.project.defaultPose.id);if(saved){saved.pose=C.copyPose(pose);saved.layerOrder=ch.layerOrder.slice();saved.hiddenParts=ch.hiddenParts.slice();}});
+ const shared=s.project.poseSlots.find(item=>item&&item.id===s.project.defaultPose.id);
+ if(shared){shared.pose=C.copyPose(pose);shared.layerOrder=ch.layerOrder.slice();shared.hiddenParts=ch.hiddenParts.slice();}
+}
+function removePoseEverywhere(id){
+ s.project.slots.forEach(character=>{if(character)character.savedPoses=character.savedPoses.filter(entry=>entry.id!==id);});
+ const index=s.project.poseSlots.findIndex(entry=>entry&&entry.id===id);
+ if(index>=0){s.project.poseSlots.splice(index,1);s.project.poseSlots.push(null);}
+}
+function renderHomePoseSlots(){
+ const slots=s.project.poseSlots||Array(C.POSE_SLOT_COUNT).fill(null),ch=current(),previewBase=ch||C.makeCharacter(0);
+ $("home-pose-count").textContent=slots.filter(Boolean).length+"/"+C.POSE_SLOT_COUNT;
+ $("home-pose-slots").innerHTML=slots.map((entry,index)=>entry?
+  '<div class="home-pose-entry"><button type="button" class="home-pose-slot occupied" data-action="apply-home-pose:'+index+'" aria-label="Aplicar pose '+C.esc(entry.name)+' ao personagem selecionado" title="'+C.esc(entry.name)+'" '+(!ch?"disabled":"")+'><span class="home-pose-thumb">'+C.renderSVG({...previewBase,pose:entry.pose,layerOrder:entry.layerOrder,hiddenParts:entry.hiddenParts},{preview:true})+'</span><span class="home-pose-slot-name">'+C.esc(entry.name)+'</span><span class="home-pose-slot-index">'+String(index+1).padStart(2,"0")+'</span></button><button type="button" class="home-pose-delete" data-action="delete-home-pose:'+index+'" aria-label="Excluir pose '+C.esc(entry.name)+'" title="Excluir pose">×</button></div>':
+  '<button type="button" class="home-pose-slot empty" data-action="open-pose" aria-label="Slot de pose '+(index+1)+' vazio. Abrir editor para salvar pose" '+(!ch?"disabled":"")+'><span class="home-pose-empty-icon">＋</span><span class="home-pose-slot-name">Vazio</span><span class="home-pose-slot-index">'+String(index+1).padStart(2,"0")+'</span></button>'
+ ).join("");
+}
+function renderWardrobe(){
+ const ch=current(),category=s.wardrobeCategory;
+ $("wardrobe-person-name").textContent=ch?ch.name:"Sem personagem";
+ $("wardrobe-preview").innerHTML=ch?C.renderSVG(ch,{preview:true}):'<p class="placeholder">Selecione um personagem.</p>';
+ document.querySelectorAll("[data-action^='wardrobe-category:']").forEach(button=>{
+  const active=button.dataset.action==="wardrobe-category:"+category;button.classList.toggle("active",active);button.setAttribute("aria-selected",String(active));
+ });
+ const isTop=category==="tops",assets=isTop?C.WARDROBE_ART.tops:C.WARDROBE_ART.sleeves;
+ $("wardrobe-category-title").textContent=isTop?"Regatas":"Mangas";
+ $("wardrobe-item-count").textContent=isTop?assets.length+" itens":assets.length+" pares";
+ const worn=ch&&ch.wardrobe&&(isTop?ch.wardrobe.top:ch.wardrobe.sleeves),controls=$("wardrobe-controls");
+ controls.innerHTML=worn?'<div class="wardrobe-adjust-head"><div><span class="eyebrow">PEÇA EQUIPADA</span><strong>'+(isTop?"Regata ":"Mangas ")+String(worn.index+1).padStart(2,"0")+'</strong></div><button class="button danger" data-action="wardrobe-remove:'+category+'">Remover</button></div>'+
+  '<div class="wardrobe-transform-grid">'+[["x","Posição X",-120,120," px"],["y","Posição Y",-160,160," px"],["scale","Escala",35,200,"%"],["rotation","Rotação",-90,90,"°"]].map(([field,label,min,max,suffix])=>'<label class="wardrobe-transform-control"><span>'+label+' <output>'+worn[field]+suffix+'</output></span><input type="range" min="'+min+'" max="'+max+'" step="'+(field==="scale"?1:1)+'" value="'+worn[field]+'" data-wardrobe-field="'+field+'" aria-label="'+label+'"></label>').join("")+'</div>'+
+  '<div class="wardrobe-nudge-row"><span>Mover peça</span><button data-action="wardrobe-nudge:'+category+':0:-1" aria-label="Mover peça para cima">↑</button><button data-action="wardrobe-nudge:'+category+':-1:0" aria-label="Mover peça para esquerda">←</button><button data-action="wardrobe-nudge:'+category+':1:0" aria-label="Mover peça para direita">→</button><button data-action="wardrobe-nudge:'+category+':0:1" aria-label="Mover peça para baixo">↓</button></div>':
+  '<div class="wardrobe-adjust-empty"><span>Escolha uma peça para vestir no personagem.</span><span>Ajustes de posição, escala e rotação aparecem aqui.</span></div>';
+ $("wardrobe-options").innerHTML=assets.map((item,index)=>{
+  const label=(isTop?"Regata ":"Mangas ")+String(index+1).padStart(2,"0");
+  const artwork=isTop?'<span class="wardrobe-option-art"><img src="'+item.image+'" alt="'+label+'"></span>':'<span class="wardrobe-option-art wardrobe-sleeve-pair"><img src="'+item[0].image+'" alt="Manga esquerda '+String(index+1).padStart(2,"0")+'"><img src="'+item[1].image+'" alt="Manga direita '+String(index+1).padStart(2,"0")+'"></span>';
+  const selected=!!worn&&worn.index===index;
+  return '<button type="button" class="wardrobe-item '+(selected?"selected":"")+'" data-action="wardrobe-wear:'+category+':'+index+'" aria-label="Vestir '+label+'" aria-pressed="'+selected+'">'+artwork+'<span class="wardrobe-option-name">'+label+'</span><span class="wardrobe-wear-label">'+(selected?"Vestida":"Vestir")+'</span></button>';
+ }).join("");
 }
 function render(){
  const ch=current();
@@ -74,11 +169,16 @@ function render(){
   (item?'<span class="slot-figure">'+C.renderSVG(item,{preview:true})+'</span>':'<span class="slot-add">+</span>')+
   '<span class="slot-index">'+String(i+1).padStart(2,"0")+'</span></button>').join("");
  $("slot-count").textContent=s.project.slots.filter(Boolean).length+"/16";
+ renderHomePoseSlots();renderWardrobe();
  $("hero-name").textContent=ch?ch.name:"Slot vazio";
  $("slot-position").textContent="SLOT "+String(s.slot+1).padStart(2,"0");
  $("pose-person-name").textContent=ch?ch.name:"Sem personagem";
  if(ch){$("character-name").value=ch.name;$("skin-color").value=ch.skin;}
- draw();renderInspector();renderSaved();
+ draw();renderInspector();renderLayers();renderSaved();
+ $("part-list").hidden=s.rigView!=="parts";$("layers-panel").hidden=s.rigView!=="layers";
+ document.querySelectorAll("[data-action^='rig-view:']").forEach(button=>{
+  const active=button.dataset.action==="rig-view:"+s.rigView;button.classList.toggle("active",active);button.setAttribute("aria-selected",String(active));
+ });
  $("undo-btn").disabled=s.undo.length===0;$("redo-btn").disabled=s.redo.length===0;
  document.querySelectorAll(".requires-character").forEach(b=>b.disabled=!ch);
  document.querySelectorAll("[data-tool]").forEach(b=>b.classList.toggle("active",b.dataset.tool===s.tool));
@@ -88,7 +188,7 @@ function render(){
 function selectSlot(i){
  if(i<0||i>=16)return;
  s.slot=i;
- if(!current()){const prev=serialize();s.project.slots[i]=C.makeCharacter(i);history(prev);toast("Personagem criado no slot "+(i+1));}
+ if(!current()){const initial=C.defaultPoseFor(s.project),prev=serialize();s.project.slots[i]=C.makeCharacter(i,initial);if(i===2&&!s.project.defaultPose&&initial)s.project.defaultPose={...initial,sourceSlot:2};history(prev);toast("Personagem criado no slot "+(i+1)+(initial?" com a pose padrão e suas camadas":""));}
  s.part="head";render();
 }
 function restore(kind){
@@ -126,38 +226,93 @@ async function loadJSON(){
   s.project=next;history(prev);s.slot=Math.max(0,next.slots.findIndex(Boolean));s.part="head";showPage("home");toast("Projeto importado.");
  }catch(err){toast("Erro ao importar: "+err.message);}
 }
-function savePose(){
+async function savePose(){
  const ch=current();if(!ch)return;
  if(ch.savedPoses.length>=40)return toast("Limite de 40 poses neste personagem.");
- const name=prompt("Nome da nova pose:", "Minha pose "+(ch.savedPoses.length+1));
+ const name=await askText("Salvar pose","Dê um nome para esta pose.","Minha pose "+(ch.savedPoses.length+1));
  if(name===null)return;
  const clean=name.trim().slice(0,50);if(!clean)return toast("Digite um nome para a pose.");
- edit(x=>x.savedPoses.push(C.newPoseEntry(clean,x.workingPose)));
- toast("Pose \""+clean+"\" guardada. A prévia inicial não mudou.");
+ let inQuickSlots=false;
+ edit(x=>{const entry=C.newPoseEntry(clean,x.workingPose,x);x.savedPoses.push(entry);inQuickSlots=registerPoseSlot(entry);});
+ toast(inQuickSlots?"Pose \""+clean+"\" guardada nos slots rápidos.":"Pose guardada no personagem; os 12 slots rápidos estão cheios.");
 }
-function action(e){
- const b=e.target.closest("[data-action],[data-slot],[data-part-select],[data-tool]");if(!b)return;
+async function importPose(){
+ try{
+  let text;
+  if(window.desktopAPI)text=await window.desktopAPI.openText();
+  else text=await new Promise(resolve=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=()=>{const file=input.files?.[0];if(file)file.text().then(resolve).catch(()=>resolve(null));else resolve(null);};input.click();});
+  if(!text)return;
+  const data=JSON.parse(text),ch=current();
+  if(data.format!=="gacha-pose-v1"||data.version!==1||!ch)throw new Error("Arquivo não contém uma pose gacha-pose-v1 válida.");
+  if(ch.savedPoses.length>=40)throw new Error("Limite de 40 poses neste personagem.");
+  const entry=C.newPoseEntry(String(data.name||"Pose importada").trim().slice(0,50)||"Pose importada",C.normalizePose(data.pose),{layerOrder:data.layerOrder||ch.layerOrder,hiddenParts:data.hiddenParts||ch.hiddenParts});
+  let inQuickSlots=false;
+  edit(character=>{character.savedPoses.push(entry);character.workingPose=C.copyPose(entry.pose);character.layerOrder=entry.layerOrder.slice();character.hiddenParts=entry.hiddenParts.slice();inQuickSlots=registerPoseSlot(entry);});
+  toast(inQuickSlots?"Pose importada para o editor e os slots rápidos.":"Pose importada para o editor; os 12 slots rápidos estão cheios.");
+ }catch(err){toast("Erro ao importar pose: "+err.message);}
+}
+async function exportPose(entry){
+ const ch=current();if(!ch)return;
+ const snapshot=entry||C.newPoseEntry(ch.name+" - rascunho",ch.workingPose,ch);
+ const json=JSON.stringify({format:"gacha-pose-v1",version:1,name:snapshot.name,pose:C.normalizePose(snapshot.pose),layerOrder:snapshot.layerOrder,hiddenParts:snapshot.hiddenParts},null,2);
+ if(window.desktopAPI){if(!await window.desktopAPI.saveText(filename(ch,"json").replace(/\.json$/i,"-pose.json"),json))return;}
+ else download(new Blob([json],{type:"application/json"}),filename(ch,"pose.json"));
+ toast("Pose exportada.");
+}
+async function action(e){
+ const b=e.target.closest("[data-action],[data-slot],[data-part-select],[data-layer-select],[data-tool]");if(!b)return;
  if(b.hasAttribute("data-slot")){selectSlot(Number(b.dataset.slot));return;}
  if(b.hasAttribute("data-part-select")){s.part=b.dataset.partSelect;render();return;}
+ if(b.hasAttribute("data-layer-select")){s.part=b.dataset.layerSelect;render();return;}
  if(b.hasAttribute("data-tool")){s.tool=b.dataset.tool;render();return;}
  const k=b.dataset.action;
  if(k==="undo"||k==="redo")return restore(k);
+ if(k.startsWith("rig-view:")){s.rigView=k.slice(9);render();return;}
  if(k==="open-pose"){if(current())showPage("pose");return;}
+ if(k==="open-wardrobe"){if(current())showPage("wardrobe");return;}
  if(k==="back-home"){showPage("home");return;}
+ if(k.startsWith("wardrobe-category:")){s.wardrobeCategory=k.slice(18);render();return;}
+ if(k.startsWith("wardrobe-wear:")){
+  const [,category,indexText]=k.split(":"),index=Number(indexText),isTop=category==="tops";
+  if(!Number.isInteger(index)||index<0||index>7)return;
+  edit(ch=>{ch.wardrobe=ch.wardrobe||{top:null,sleeves:null};ch.wardrobe[isTop?"top":"sleeves"]={index,x:0,y:0,scale:100,rotation:0};},true);return;
+ }
+ if(k.startsWith("wardrobe-remove:")){const key=k.slice(16)==="tops"?"top":"sleeves";edit(ch=>{ch.wardrobe[key]=null;},true);return;}
+ if(k.startsWith("wardrobe-nudge:")){
+  const [,category,dx,dy]=k.split(":"),key=category==="tops"?"top":"sleeves",x=Number(dx),y=Number(dy);
+  edit(ch=>{const item=ch.wardrobe[key];if(item){item.x=C.clamp(item.x+x*2,-160,160);item.y=C.clamp(item.y+y*2,-160,160);}},true);return;
+ }
  if(k==="new"){const i=s.project.slots.findIndex(v=>!v);return i===-1?toast("Os 16 slots já estão ocupados."):selectSlot(i);}
+ if(k.startsWith("apply-home-pose:")){
+  const entry=s.project.poseSlots[Number(k.slice(16))];if(!entry||!current())return;
+  edit(ch=>{ch.pose=C.copyPose(entry.pose);ch.workingPose=C.copyPose(entry.pose);ch.layerOrder=entry.layerOrder.slice();ch.hiddenParts=entry.hiddenParts.slice();syncDefaultPose(ch,ch.pose);});toast("Pose e camadas aplicadas ao personagem.");return;
+ }
+ if(k.startsWith("delete-home-pose:")){
+  const entry=s.project.poseSlots[Number(k.slice(17))];if(!entry||!await askConfirm("Excluir pose","A pose será removida das bibliotecas rápida e pessoais vinculadas. As poses seguintes avançarão para ocupar o espaço.","Excluir pose"))return;
+  edit(()=>removePoseEverywhere(entry.id));toast("Pose excluída; os slots foram reorganizados.");return;
+ }
+ if(k.startsWith("layer-front:")||k.startsWith("layer-back:")){
+  const id=k.slice(k.indexOf(":")+1),step=k.startsWith("layer-front:")?-1:1;
+  edit(ch=>{const stack=ch.layerOrder.slice().reverse(),index=stack.indexOf(id),next=index+step;if(index<0||next<0||next>=stack.length)return;[stack[index],stack[next]]=[stack[next],stack[index]];ch.layerOrder=stack.reverse();syncDefaultLayers(ch);},true);return;
+ }
+ if(k.startsWith("toggle-layer:")){
+  const id=k.slice(13);edit(ch=>{const index=ch.hiddenParts.indexOf(id);if(index>=0)ch.hiddenParts.splice(index,1);else ch.hiddenParts.push(id);syncDefaultLayers(ch);},true);return;
+ }
  if(k==="clone"){
   const i=s.project.slots.findIndex(v=>!v);if(!current()||i<0)return toast("Não há slots livres.");
   const before=serialize(),copy=JSON.parse(JSON.stringify(current()));copy.id="person-"+Date.now();copy.name=(copy.name+" (cópia)").slice(0,60);
   s.project.slots[i]=copy;s.slot=i;history(before);render();toast("Personagem duplicado.");return;
  }
  if(k==="delete"){
-  if(!current()||!confirm("Excluir este personagem? Essa ação pode ser desfeita."))return;
+  if(!current()||!await askConfirm("Excluir personagem","Esta ação pode ser desfeita.","Excluir personagem"))return;
   const before=serialize();s.project.slots[s.slot]=null;history(before);render();toast("Slot esvaziado.");return;
  }
  if(k==="mirror")return edit(ch=>{ch.mirrored=!ch.mirrored;});
  if(k==="export-json")return saveJSON();
  if(k==="export-png")return savePNG();
  if(k==="import-json")return loadJSON();
+ if(k==="import-pose")return importPose();
+ if(k==="export-pose")return exportPose();
  if(k==="reset-part")return editDraft(pose=>{const part=C.BY_ID[s.part];pose[s.part]={x:part.base[0],y:part.base[1],rotation:0};});
  if(k==="align-part")return editDraft(pose=>{const p=C.BY_ID[s.part];pose[s.part].x=p.base[0];pose[s.part].y=p.base[1];});
  if(k==="reset-pose")return editDraft((_pose,ch)=>{ch.workingPose=C.freshPose();});
@@ -169,26 +324,79 @@ function action(e){
  if(k.startsWith("preset:"))return editDraft((_pose,ch)=>{ch.workingPose=C.freshPose();C.applyPreset({pose:ch.workingPose},k.slice(7));});
  if(k==="save-pose")return savePose();
  if(k==="apply-pose"){
-  edit(ch=>{ch.pose=C.copyPose(ch.workingPose);});
+  edit(ch=>{ch.pose=C.copyPose(ch.workingPose);syncDefaultPose(ch,ch.pose);});
   showPage("home");toast("Pose aplicada! A prévia inicial foi atualizada.");return;
  }
  if(k.startsWith("load-saved:")){
   const saved=current()?.savedPoses[Number(k.slice(11))];if(!saved)return;
-  edit(ch=>{ch.workingPose=C.copyPose(saved.pose);});toast("Pose carregada só no editor.");return;
+  edit(ch=>{ch.workingPose=C.copyPose(saved.pose);ch.layerOrder=saved.layerOrder.slice();ch.hiddenParts=saved.hiddenParts.slice();});toast("Pose e camadas carregadas no editor.");return;
  }
+ if(k.startsWith("duplicate-saved:")){
+  const entry=current()?.savedPoses[Number(k.slice(16))];if(!entry)return;
+  if(current().savedPoses.length>=40)return toast("Limite de 40 poses neste personagem.");
+  let inQuickSlots=false;edit(ch=>{const copy=C.newPoseEntry(entry.name+" (cópia)",entry.pose,entry);ch.savedPoses.push(copy);inQuickSlots=registerPoseSlot(copy);});toast(inQuickSlots?"Cópia salva na biblioteca e nos slots rápidos.":"Cópia salva na biblioteca; os slots rápidos estão cheios.");return;
+ }
+ if(k.startsWith("rename-saved:")){
+  const index=Number(k.slice(13)),entry=current()?.savedPoses[index];if(!entry)return;
+  const name=await askText("Renomear pose","Escolha um novo nome para a pose.",entry.name);if(name===null)return;
+  const clean=name.trim().slice(0,50);if(!clean)return toast("Digite um nome para a pose.");
+  edit(ch=>{ch.savedPoses[index].name=clean;const slot=s.project.poseSlots.find(item=>item&&item.id===entry.id);if(slot)slot.name=clean;});toast("Pose renomeada.");return;
+ }
+ if(k.startsWith("copy-saved:")){
+  const entry=current()?.savedPoses[Number(k.slice(11))];if(!entry)return;
+  const destination=await showAppDialog({title:"Copiar pose",message:"Informe o número do slot de personagem de destino (1–16).",inputLabel:"Slot de destino",value:"",confirmText:"Copiar"});if(destination===null)return;
+  const index=Number(destination)-1,target=s.project.slots[index];
+  if(!Number.isInteger(index)||index<0||index>=C.SLOT_COUNT||!target)return toast("Escolha um slot ocupado entre 1 e 16.");
+  if(target.savedPoses.length>=40)return toast("O personagem de destino já tem 40 poses salvas.");
+  let inQuickSlots=false;edit(()=>{const copy=C.newPoseEntry(entry.name,entry.pose,entry);target.savedPoses.push(copy);inQuickSlots=registerPoseSlot(copy);});
+  toast(inQuickSlots?"Pose copiada e adicionada aos slots rápidos.":"Pose copiada; os slots rápidos estão cheios.");return;
+ }
+ if(k.startsWith("export-saved:"))return exportPose(current()?.savedPoses[Number(k.slice(13))]);
  if(k.startsWith("delete-saved:")){
-  const index=Number(k.slice(13)),ch=current();if(!ch?.savedPoses[index]||!confirm("Excluir esta pose salva?"))return;
-  edit(c=>{c.savedPoses.splice(index,1);});toast("Pose excluída.");return;
+  const index=Number(k.slice(13)),ch=current(),entry=ch?.savedPoses[index];if(!entry||!await askConfirm("Excluir pose","Esta pose será removida da biblioteca rápida também.","Excluir pose"))return;
+  edit(()=>removePoseEverywhere(entry.id));toast("Pose excluída.");return;
  }
 }
 function bind(){
  document.addEventListener("click",e=>{Promise.resolve().then(()=>action(e)).catch(err=>toast("Erro: "+err.message));});
+ document.addEventListener("change",e=>{
+  const input=e.target.closest("[data-wardrobe-field]");if(!input||!current())return;
+  const field=input.dataset.wardrobeField,category=s.wardrobeCategory,key=category==="tops"?"top":"sleeves",value=Number(input.value);
+  if(!Number.isFinite(value))return;
+  edit(ch=>{const garment=ch.wardrobe&&ch.wardrobe[key];if(garment)garment[field]=value;},true);
+ });
+ document.addEventListener("dragstart",e=>{
+  const handle=e.target.closest("[data-layer-select]");if(!handle)return;
+  e.dataTransfer.setData("text/plain",handle.dataset.layerSelect);e.dataTransfer.effectAllowed="move";
+ });
+ document.addEventListener("dragover",e=>{if(e.target.closest("[data-layer-row]")){e.preventDefault();e.dataTransfer.dropEffect="move";}});
+ document.addEventListener("drop",e=>{
+  const row=e.target.closest("[data-layer-row]");if(!row)return;e.preventDefault();
+  const source=e.dataTransfer.getData("text/plain"),target=row.dataset.layerRow;
+  if(!source||!target||source===target)return;
+  edit(ch=>{const stack=ch.layerOrder.slice().reverse(),from=stack.indexOf(source),to=stack.indexOf(target);if(from<0||to<0)return;stack.splice(to,0,stack.splice(from,1)[0]);ch.layerOrder=stack.reverse();syncDefaultLayers(ch);},true);
+ });
  $("character-name").addEventListener("change",e=>edit(ch=>{ch.name=e.target.value.trim().slice(0,60)||ch.name;}));
  $("skin-color").addEventListener("change",e=>edit(ch=>{ch.skin=e.target.value;}));
+ document.addEventListener("focusin",e=>{
+  if(e.target.matches("[data-pose-field]")&&!numericStart)numericStart=serialize();
+ });
+ document.addEventListener("input",e=>{
+  const key=e.target.dataset.poseField;if(!key||!current())return;
+  if(e.target.value.trim()===""||e.target.value==="-"||e.target.value===".")return;
+  const n=Number(e.target.value);if(!Number.isFinite(n))return;
+  current().workingPose[s.part][key]=C.clamp(n,key==="rotation"?-180:-600,key==="rotation"?180:600);
+  drawStage();
+  if(key==="rotation")$("rotation-value").textContent=Math.round(n*10)/10+"°";
+ });
  document.addEventListener("change",e=>{
   const key=e.target.dataset.poseField;if(!key||!current())return;
-  const n=Number(e.target.value);if(!Number.isFinite(n))return toast("Valor inválido.");
-  editDraft(pose=>{pose[s.part][key]=C.clamp(n,key==="rotation"?-180:-600,key==="rotation"?180:600);});
+  const n=Number(e.target.value);if(!Number.isFinite(n)){e.target.value=current().workingPose[s.part][key];return toast("Valor inválido.");}
+  const limit=key==="rotation"?180:600;
+  current().workingPose[s.part][key]=C.clamp(n,-limit,limit);
+  e.target.value=current().workingPose[s.part][key];
+  history(numericStart||serialize());numericStart=null;drawStage();
+  if(key==="rotation")$("rotation-value").textContent=Math.round(current().workingPose[s.part][key]*10)/10+"°";
  });
  document.addEventListener("pointerdown",e=>{if(e.target.id==="rotation-slider")sliderStart=serialize();});
  document.addEventListener("focusin",e=>{if(e.target.id==="rotation-slider"&&!sliderStart)sliderStart=serialize();});

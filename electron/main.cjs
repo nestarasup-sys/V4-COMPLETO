@@ -2,6 +2,8 @@
 const {app,BrowserWindow,dialog,ipcMain}=require("electron");
 const fs=require("node:fs/promises");
 const path=require("node:path");
+const testMode=process.env.GACHA_TEST_MODE==="1";
+if(testMode&&process.env.GACHA_TEST_USER_DATA)app.setPath("userData",path.resolve(process.env.GACHA_TEST_USER_DATA));
 function projectPath(){return path.join(app.getPath("userData"),"characters.json");}
 function safeName(name,ext){
  const result=path.basename(String(name||("gacha-v4."+ext))).replace(/[^\w .()À-ÿ-]/g,"_").slice(0,100);
@@ -10,11 +12,13 @@ function safeName(name,ext){
 function validateText(data){
  if(typeof data!=="string"||Buffer.byteLength(data)>5*1024*1024)throw new Error("Arquivo muito grande.");
  const parsed=JSON.parse(data);
- if(parsed.format!=="gacha-body-v1"||parsed.version!==1||!Array.isArray(parsed.slots)||parsed.slots.length!==16)throw new Error("Formato inválido.");
+  const project=parsed.format==="gacha-body-v1"&&parsed.version===1&&Array.isArray(parsed.slots)&&parsed.slots.length===16;
+  const pose=parsed.format==="gacha-pose-v1"&&parsed.version===1&&typeof parsed.name==="string"&&parsed.name.length<=50&&parsed.pose&&typeof parsed.pose==="object"&&!Array.isArray(parsed.pose);
+  if(!project&&!pose)throw new Error("JSON inválido. Esperado projeto gacha-body-v1 ou pose gacha-pose-v1.");
  return data;
 }
 function createWindow(){
- const win=new BrowserWindow({width:1550,height:960,minWidth:950,minHeight:680,backgroundColor:"#171526",
+ const win=new BrowserWindow({width:1550,height:960,minWidth:950,minHeight:680,show:!testMode,backgroundColor:"#171526",
   autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,"preload.cjs"),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true}});
  win.webContents.setWindowOpenHandler(()=>({action:"deny"}));
  win.webContents.on("will-navigate",event=>event.preventDefault());
@@ -32,14 +36,14 @@ app.whenReady().then(()=>{
   return true;
  });
  ipcMain.handle("file:openText",async()=>{
-  const result=await dialog.showOpenDialog({title:"Importar personagens",filters:[{name:"Projeto Gacha",extensions:["json"]}],properties:["openFile"]});
+  const result=await dialog.showOpenDialog({title:"Importar dados Gacha",filters:[{name:"JSON Gacha",extensions:["json"]}],properties:["openFile"]});
   if(result.canceled||!result.filePaths.length)return null;
   const stat=await fs.stat(result.filePaths[0]);if(stat.size>5*1024*1024)throw new Error("JSON muito grande.");
   return await fs.readFile(result.filePaths[0],"utf8");
  });
  ipcMain.handle("file:saveText",async(_e,name,data)=>{
   validateText(data);
-  const result=await dialog.showSaveDialog({title:"Exportar projeto",defaultPath:safeName(name,"json"),filters:[{name:"Projeto Gacha",extensions:["json"]}]});
+  const result=await dialog.showSaveDialog({title:"Exportar dados",defaultPath:safeName(name,"json"),filters:[{name:"JSON Gacha",extensions:["json"]}]});
   if(result.canceled||!result.filePath)return false;
   await fs.writeFile(result.filePath,data,"utf8");return true;
  });
