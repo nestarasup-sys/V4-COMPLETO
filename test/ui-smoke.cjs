@@ -6,6 +6,9 @@ const os=require("node:os");
 const assert=require("node:assert/strict");
 const testData=path.join(os.tmpdir(),"gacha-v4-ui-smoke-"+process.pid);
 const partition="persist:gacha-ui-smoke-"+process.pid;
+// Keep Electron alive until the async assertions finish, so an unexpected
+// window close cannot turn a failed smoke run into a false exit code 0.
+app.on("window-all-closed",()=>{});
 app.setPath("userData",testData);
 app.setPath("sessionData",path.join(testData,"session"));
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
