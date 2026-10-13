@@ -24,6 +24,7 @@ async function check(){
   const poses=await run('({official:window.GachaEditor.current().pose.head.x,draft:window.GachaEditor.current().workingPose.head.x})');
   assert.equal(poses.official,initial,"Rascunho não pode alterar a pose oficial");
   assert.equal(poses.draft,initial+1,"Encaixe fino deve mover a peça");
+  await sleep(320);
   await fs.writeFile(path.join(dir,"ui-pose-1366.png"),(await win.webContents.capturePage()).toPNG());
   await run('document.querySelector("[data-action=back-home]").click()');
   assert.equal(await run('window.GachaEditor.current().pose.head.x'),initial);
@@ -36,6 +37,12 @@ async function check(){
   assert.equal(await run('window.GachaEditor.current().pose.head.x'),initial,"Undo da aplicação");
   await run('document.querySelector("[data-action=redo]").click()');
   assert.equal(await run('window.GachaEditor.current().pose.head.x'),initial+1,"Redo da aplicação");
+  await run('document.querySelector("[data-action=open-pose]").click()');
+  const valueBeforeDrag=await run('window.GachaEditor.current().workingPose.head.x');
+  const dragResult=await run('(function(){const part=document.querySelector("#editor-stage path[data-part=head]");const r=part.getBoundingClientRect();const x=r.left+r.width/2,y=r.top+r.height/2;part.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,button:0,clientX:x,clientY:y}));document.dispatchEvent(new PointerEvent("pointermove",{bubbles:true,buttons:1,clientX:x+35,clientY:y+10}));document.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,button:0,clientX:x+35,clientY:y+10}));return window.GachaEditor.current().workingPose.head.x;})()');
+  assert.notEqual(dragResult,valueBeforeDrag,"Arrastar diretamente a cabeça deve alterar sua posição");
+  assert.equal(await run('window.GachaEditor.current().pose.head.x'),initial+1,"Arrastar rascunho não pode mudar prévia oficial");
+  await run('document.querySelector("[data-action=back-home]").click()');
   win.setSize(1920,1080);await sleep(300);
   await fs.writeFile(path.join(dir,"ui-home-1920.png"),(await win.webContents.capturePage()).toPNG());
   console.log("UI smoke OK: slots, 9:16, pose separated, editing, application, undo/redo, screenshots");

@@ -26,7 +26,7 @@ test("rejects untrusted geometry values and escapes names",()=>{
 });
 test("renderer supports editor and 9:16 preview",()=>{
  const ch=core.makeCharacter(0);
- assert.ok(core.renderSVG(ch,{preview:true}).includes("1995"));
+ assert.ok(core.renderSVG(ch,{preview:true}).includes("107 0 909 1616"));
  assert.ok(core.renderSVG(ch,{editor:true,joints:true}).includes("rig-joint"));
  assert.ok(core.renderSVG(ch,{}).includes("viewBox"));
 });

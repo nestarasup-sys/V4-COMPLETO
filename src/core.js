@@ -99,10 +99,10 @@
     options=options||{};
     if(!character)return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1122 1995"></svg>';
     var preview=!!options.preview,editor=!!options.editor;
-    var h=preview?1995:HEIGHT,yShift=preview?290:0;
+    var h=preview?1616:HEIGHT,yShift=preview?115:0;
     var m=transforms(character);
     var rootTransform=(character.mirrored?"translate(1122 0) scale(-1 1) ":"")+"translate(0 "+yShift+")";
-    var svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+WIDTH+' '+h+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Corpo chibi articulado">';
+    var svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+(preview?'107 0 909 1616':'0 0 '+WIDTH+' '+h)+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Corpo chibi articulado">';
     svg+='<defs><linearGradient id="skinShade" x1="0" y1="0" x2="1" y2=".55"><stop stop-color="#ffffff" stop-opacity=".43"/><stop offset=".68" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#8c4f38" stop-opacity=".13"/></linearGradient></defs>';
     if(editor&&options.grid){
       svg+='<defs><pattern id="grid" width="56" height="56" patternUnits="userSpaceOnUse"><path d="M56 0H0V56" fill="none" stroke="#bcb5d8" stroke-opacity=".24" stroke-width="2"/></pattern></defs><rect width="1122" height="1402" fill="url(#grid)"/>';
