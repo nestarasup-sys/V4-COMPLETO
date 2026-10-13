@@ -24,6 +24,27 @@ function toast(msg){
  const el=$("toast");el.textContent=msg;el.classList.add("active");
  clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove("active"),3000);
 }
+function showAppDialog({title,message,inputLabel=null,value="",confirmText="Confirmar"}){
+ return new Promise(resolve=>{
+  const dialog=$("app-dialog"),form=$("app-dialog-form"),input=$("app-dialog-input"),inputWrap=$("app-dialog-input-wrap");
+  const finish=result=>{form.onsubmit=null;$("app-dialog-cancel").onclick=null;dialog.oncancel=null;dialog.close();resolve(result);};
+  $("app-dialog-title").textContent=title;$("app-dialog-message").textContent=message;
+  $("app-dialog-confirm").textContent=confirmText;
+  inputWrap.hidden=inputLabel===null;
+  if(inputLabel!==null){$("app-dialog-input-label").textContent=inputLabel;input.value=value;}
+  form.onsubmit=event=>{event.preventDefault();finish(inputLabel===null?true:input.value);};
+  $("app-dialog-cancel").onclick=()=>finish(null);
+  dialog.oncancel=event=>{event.preventDefault();finish(null);};
+  dialog.showModal();
+  if(inputLabel!==null)requestAnimationFrame(()=>{input.focus();input.select();});
+ });
+}
+function askText(title,message,value,label="Nome"){
+ return showAppDialog({title,message,value,inputLabel:label,confirmText:"Salvar"});
+}
+function askConfirm(title,message,confirmText="Excluir"){
+ return showAppDialog({title,message,confirmText});
+}
 function showPage(page){
  s.page=page;
  $("page-home").hidden=page!=="home";$("page-pose").hidden=page!=="pose";
@@ -142,10 +163,10 @@ async function loadJSON(){
   s.project=next;history(prev);s.slot=Math.max(0,next.slots.findIndex(Boolean));s.part="head";showPage("home");toast("Projeto importado.");
  }catch(err){toast("Erro ao importar: "+err.message);}
 }
-function savePose(){
+async function savePose(){
  const ch=current();if(!ch)return;
  if(ch.savedPoses.length>=40)return toast("Limite de 40 poses neste personagem.");
- const name=prompt("Nome da nova pose:", "Minha pose "+(ch.savedPoses.length+1));
+ const name=await askText("Salvar pose","Dê um nome para esta pose.","Minha pose "+(ch.savedPoses.length+1));
  if(name===null)return;
  const clean=name.trim().slice(0,50);if(!clean)return toast("Digite um nome para a pose.");
  let inQuickSlots=false;
@@ -175,7 +196,7 @@ async function exportPose(entry){
  else download(new Blob([json],{type:"application/json"}),filename(ch,"pose.json"));
  toast("Pose exportada.");
 }
-function action(e){
+async function action(e){
  const b=e.target.closest("[data-action],[data-slot],[data-part-select],[data-tool]");if(!b)return;
  if(b.hasAttribute("data-slot")){selectSlot(Number(b.dataset.slot));return;}
  if(b.hasAttribute("data-part-select")){s.part=b.dataset.partSelect;render();return;}
@@ -195,7 +216,7 @@ function action(e){
   s.project.slots[i]=copy;s.slot=i;history(before);render();toast("Personagem duplicado.");return;
  }
  if(k==="delete"){
-  if(!current()||!confirm("Excluir este personagem? Essa ação pode ser desfeita."))return;
+  if(!current()||!await askConfirm("Excluir personagem","Esta ação pode ser desfeita.","Excluir personagem"))return;
   const before=serialize();s.project.slots[s.slot]=null;history(before);render();toast("Slot esvaziado.");return;
  }
  if(k==="mirror")return edit(ch=>{ch.mirrored=!ch.mirrored;});
@@ -229,13 +250,13 @@ function action(e){
  }
  if(k.startsWith("rename-saved:")){
   const index=Number(k.slice(13)),entry=current()?.savedPoses[index];if(!entry)return;
-  const name=prompt("Novo nome da pose:",entry.name);if(name===null)return;
+  const name=await askText("Renomear pose","Escolha um novo nome para a pose.",entry.name);if(name===null)return;
   const clean=name.trim().slice(0,50);if(!clean)return toast("Digite um nome para a pose.");
   edit(ch=>{ch.savedPoses[index].name=clean;const slot=s.project.poseSlots.find(item=>item&&item.id===entry.id);if(slot)slot.name=clean;});toast("Pose renomeada.");return;
  }
  if(k.startsWith("copy-saved:")){
   const entry=current()?.savedPoses[Number(k.slice(11))];if(!entry)return;
-  const destination=prompt("Número do slot de destino (1–16):","");if(destination===null)return;
+  const destination=await showAppDialog({title:"Copiar pose",message:"Informe o número do slot de personagem de destino (1–16).",inputLabel:"Slot de destino",value:"",confirmText:"Copiar"});if(destination===null)return;
   const index=Number(destination)-1,target=s.project.slots[index];
   if(!Number.isInteger(index)||index<0||index>=C.SLOT_COUNT||!target)return toast("Escolha um slot ocupado entre 1 e 16.");
   if(target.savedPoses.length>=40)return toast("O personagem de destino já tem 40 poses salvas.");
@@ -244,7 +265,7 @@ function action(e){
  }
  if(k.startsWith("export-saved:"))return exportPose(current()?.savedPoses[Number(k.slice(13))]);
  if(k.startsWith("delete-saved:")){
-  const index=Number(k.slice(13)),ch=current();if(!ch?.savedPoses[index]||!confirm("Excluir esta pose salva?"))return;
+  const index=Number(k.slice(13)),ch=current();if(!ch?.savedPoses[index]||!await askConfirm("Excluir pose","Esta pose será removida da biblioteca rápida também.","Excluir pose"))return;
   edit(c=>{c.savedPoses.splice(index,1);const slot=s.project.poseSlots.findIndex(item=>item&&item.id===entry.id);if(slot>=0)s.project.poseSlots[slot]=null;});toast("Pose excluída.");return;
  }
 }

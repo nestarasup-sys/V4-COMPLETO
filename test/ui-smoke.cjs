@@ -24,6 +24,13 @@ async function check(){
   await win.loadFile(path.join(__dirname,"..","index.html"));
   await sleep(400);
   const run=async code=>{try{return await win.webContents.executeJavaScript(code,true);}catch(error){console.error("UI smoke script failed:",code);throw error;}};
+  const answerDialog=async value=>{
+   const expires=Date.now()+2000;while(Date.now()<expires&&!(await run('document.querySelector("#app-dialog").open')))await sleep(20);
+   assert.equal(await run('document.querySelector("#app-dialog").open'),true,"A ação deve abrir a confirmação acessível do aplicativo");
+   if(value===null)await run('document.querySelector("#app-dialog-cancel").click()');
+   else{if(await run('!document.querySelector("#app-dialog-input-wrap").hidden'))await run('document.querySelector("#app-dialog-input").value='+JSON.stringify(value));await run('document.querySelector("#app-dialog-confirm").click()');}
+   await sleep(25);
+  };
   const loaded=await run('({page:window.GachaEditor.state.page,slots:document.querySelectorAll("[data-slot]").length,preview:!!document.querySelector("#phone-preview svg"),homeVisible:!document.querySelector("#page-home").hidden})');
   assert.equal(loaded.page,"home");assert.equal(loaded.slots,16);assert.equal(loaded.preview,true);assert.equal(loaded.homeVisible,true);
   const poseGrid=await run('({count:document.querySelectorAll("#home-pose-slots .home-pose-slot").length,columns:getComputedStyle(document.querySelector("#home-pose-slots")).gridTemplateColumns.split(" ").length,rows:getComputedStyle(document.querySelector("#home-pose-slots")).gridTemplateRows.split(" ").length})');
@@ -57,7 +64,7 @@ async function check(){
   assert.equal(await run('window.GachaEditor.current().workingPose.head.x'),beforeNumeric,"Edição numérica deve ser uma única ação de undo");
   await run('document.querySelector("[data-action=redo]").click()');
   assert.equal(await run('window.GachaEditor.current().workingPose.head.x'),17.5,"Edição numérica deve poder ser refeita");
-  await run('window.prompt=()=>"Pose de teste";document.querySelector("[data-action=save-pose]").click()');
+  await run('document.querySelector("[data-action=save-pose]").click()');await answerDialog("Pose de teste");
   const saved=await run('({count:window.GachaEditor.current().savedPoses.length,official:window.GachaEditor.current().pose.head.x,draft:window.GachaEditor.current().workingPose.head.x})');
   assert.equal(saved.count,1,"Pose personalizada deve ficar salva no personagem selecionado");
   assert.equal(saved.official,initial,"Salvar pose não pode publicar o rascunho");
@@ -65,7 +72,7 @@ async function check(){
   assert.equal(await run('window.GachaEditor.state.project.poseSlots.filter(Boolean).length'),1,"Pose salva no editor deve ocupar o primeiro slot compartilhado");
   await run('document.querySelector("[data-action=\\"duplicate-saved:0\\"]").click()');
   assert.equal(await run('window.GachaEditor.current().savedPoses.length'),2,"Pose salva deve ser duplicável");
-  await run('window.prompt=()=>"Pose renomeada";document.querySelector("[data-action=\\"rename-saved:1\\"]").click()');
+  await run('document.querySelector("[data-action=\\"rename-saved:1\\"]").click()');await answerDialog("Pose renomeada");
   assert.equal(await run('window.GachaEditor.current().savedPoses[1].name'),"Pose renomeada","Pose salva deve poder ser renomeada");
   await run('window.__exportedPose=null;URL.createObjectURL=blob=>{window.__exportedPose=blob;return "blob:test"};URL.revokeObjectURL=()=>{};HTMLAnchorElement.prototype.click=function(){};document.querySelector("[data-action=\\"export-saved:0\\"]").click()');
   await sleep(20);
@@ -77,7 +84,9 @@ async function check(){
   await sleep(30);
   assert.equal(await run('window.GachaEditor.current().savedPoses.length'),3,"Importação adiciona a pose à biblioteca do personagem");
   assert.equal(await run('window.GachaEditor.current().savedPoses[2].name'),"Pose de teste","Importação preserva o nome da pose");
-  await run('window.prompt=()=>"2";document.querySelector("[data-action=\\"copy-saved:0\\"]").click()');
+  await run('document.querySelector("[data-action=\\"delete-saved:2\\"]").click()');await answerDialog(null);
+  assert.equal(await run('window.GachaEditor.current().savedPoses.length'),3,"Cancelar exclusão não deve remover a pose");
+  await run('document.querySelector("[data-action=\\"copy-saved:0\\"]").click()');await answerDialog("2");
   const copied=await run('({count:window.GachaEditor.state.project.slots[1].savedPoses.length,official:window.GachaEditor.state.project.slots[1].pose.head.x})');
   assert.equal(copied.count,1,"Pose deve poder ser copiada para a biblioteca de outro personagem");
   assert.equal(copied.official,0,"Copiar pose para outro personagem não deve publicá-la");

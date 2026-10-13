@@ -76,5 +76,12 @@
     </aside>
   </div>
 </main>
+<dialog id="app-dialog" class="app-dialog" aria-labelledby="app-dialog-title" aria-describedby="app-dialog-message">
+  <form id="app-dialog-form" method="dialog">
+    <span class="eyebrow">GACHA V4</span><h2 id="app-dialog-title">Confirmar</h2><p id="app-dialog-message"></p>
+    <label id="app-dialog-input-wrap" class="field-label" for="app-dialog-input" hidden><span id="app-dialog-input-label">Nome</span><input id="app-dialog-input" type="text" maxlength="50"></label>
+    <div class="app-dialog-actions"><button id="app-dialog-cancel" class="button muted" type="button">Cancelar</button><button id="app-dialog-confirm" class="button primary" type="submit">Confirmar</button></div>
+  </form>
+</dialog>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body></html>
