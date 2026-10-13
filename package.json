@@ -32,9 +32,7 @@
     },
     "linux": {
       "target": "AppImage",
-      "category": "Graphics",
-      "desktopName": "gacha-v4-body",
-      "syncDesktopName": true
+      "category": "Graphics"
     },
     "mac": {
       "target": "dmg"
