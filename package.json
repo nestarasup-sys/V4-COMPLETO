@@ -9,7 +9,8 @@
     "test": "node --test test/*.test.cjs",
     "check": "node --check src/core.js && node --check src/renderer.js && node --check src/drag.js && node --check electron/main.cjs && node --check electron/preload.cjs",
     "dist": "electron-builder",
-    "ui-test": "electron --no-sandbox test/ui-smoke.cjs"
+    "ui-test": "electron --no-sandbox test/ui-smoke.cjs",
+    "test:e2e": "electron --no-sandbox test/electron.e2e.cjs"
   },
   "devDependencies": {
     "electron": "^44.7.0",
