@@ -16,7 +16,7 @@
 .pose-library-pager button{padding:6px 9px;font-size:10px}
 .pose-library-pager span{min-width:45px;text-align:center;color:#958ba8;font-size:10px}
 .pose-library-empty{grid-column:1/-1;color:#a6a0b6;font-size:12px;padding:8px}
-.phone{aspect-ratio:9/16}
+.phone{width:min(100%,331.875px,34.3125vh);height:auto;aspect-ratio:9/16;flex:none}
 .workspace{height:calc(100vh - 77px);overflow:hidden}
 .workspace>.panel{min-height:0}
 .slots-panel{height:100%}
@@ -29,7 +29,7 @@
  .preview-panel{height:100%;min-height:0;padding-bottom:8px}
  .preview-panel .panel-title{min-height:72px;padding-top:10px;padding-bottom:8px}
  .phone-wrap{min-height:0;padding:6px 0;overflow:hidden}
- .phone{height:min(39vh,300px)}
+ .phone{width:min(100%,168.75px,22vh);height:auto}
  .preview-info{margin:6px 0}
  .preview-actions button{padding:8px 5px}
  .editor-panel{height:100%;min-height:0;overflow-y:auto}
