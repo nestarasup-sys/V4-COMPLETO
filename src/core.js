@@ -1,6 +1,6 @@
 (function (root) {
   "use strict";
-  var WIDTH = 1122, HEIGHT = 1402, SLOT_COUNT = 16;
+  var WIDTH = 1122, HEIGHT = 1402, SLOT_COUNT = 16, POSE_SLOT_COUNT = 12;
   // Traçados vetoriais extraídos da folha chibi verde fornecida pelo autor.
   // Cada contorno é uma peça distinta, preservando proporções originais.
   var PATHS = {
@@ -54,14 +54,15 @@
   }
   function copyPose(pose){return JSON.parse(JSON.stringify(pose));}
   function newPoseEntry(name,pose){return {id:"pose-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:String(name).slice(0,50),pose:copyPose(pose)};}
-  function makeCharacter(index){
+  function makeCharacter(index,initialPose){
+    var pose=initialPose?normalizePose(initialPose.pose):freshPose();
     return {id:"person-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),
       name:"Personagem "+String(index+1).padStart(2,"0"),skin:"#f9eadd",
-      pose:freshPose(), workingPose:freshPose(), savedPoses:[], mirrored:false};
+      pose:copyPose(pose), workingPose:copyPose(pose), savedPoses:[], mirrored:false};
   }
   function freshProject(){
     var slots=Array(SLOT_COUNT).fill(null);slots[0]=makeCharacter(0);
-    return {format:"gacha-body-v1",version:1,slots:slots};
+    return {format:"gacha-body-v1",version:1,poseSlots:Array(POSE_SLOT_COUNT).fill(null),slots:slots};
   }
   function safeCharacter(obj,index){
     if(!obj||typeof obj!=="object")return null;
@@ -86,7 +87,18 @@
   function normalize(raw){
     if(!raw||raw.format!=="gacha-body-v1"||raw.version!==1||!Array.isArray(raw.slots)||raw.slots.length!==SLOT_COUNT)
       throw new Error("Formato inválido. Esperado gacha-body-v1 com 16 slots.");
-    return {format:"gacha-body-v1",version:1,slots:raw.slots.map(safeCharacter)};
+    var slots=raw.slots.map(safeCharacter);
+    var poseSlots=Array(POSE_SLOT_COUNT).fill(null);
+    if(Array.isArray(raw.poseSlots))raw.poseSlots.slice(0,POSE_SLOT_COUNT).forEach(function(entry,index){
+      if(entry&&typeof entry==="object"&&entry.pose)poseSlots[index]={id:String(entry.id||("pose-slot-"+index)).slice(0,80),
+        name:String(entry.name||("Pose "+(index+1))).slice(0,50),pose:normalizePose(entry.pose)};
+    });
+    slots.forEach(function(character){if(character)character.savedPoses.forEach(function(entry){
+      if(poseSlots.some(function(slot){return slot&&slot.id===entry.id;}))return;
+      var empty=poseSlots.findIndex(function(slot){return slot===null;});
+      if(empty>=0)poseSlots[empty]={id:entry.id,name:entry.name,pose:copyPose(entry.pose)};
+    });});
+    return {format:"gacha-body-v1",version:1,poseSlots:poseSlots,slots:slots};
   }
   function rotation(a){var c=Math.cos(a*Math.PI/180),s=Math.sin(a*Math.PI/180);return [c,s,-s,c,0,0];}
   function mul(m,n){return [m[0]*n[0]+m[2]*n[1],m[1]*n[0]+m[3]*n[1],
@@ -145,7 +157,7 @@
     var preset=PRESETS[name];if(!preset)return false;
     PARTS.forEach(function(p){character.pose[p.id].rotation=preset[p.id]||0;});return true;
   }
-  var api={WIDTH:WIDTH,HEIGHT:HEIGHT,SLOT_COUNT:SLOT_COUNT,PARTS:PARTS,BY_ID:BY_ID,PRESETS:PRESETS,
+  var api={WIDTH:WIDTH,HEIGHT:HEIGHT,SLOT_COUNT:SLOT_COUNT,POSE_SLOT_COUNT:POSE_SLOT_COUNT,PARTS:PARTS,BY_ID:BY_ID,PRESETS:PRESETS,
     DRAW_ORDER:DRAW_ORDER,PATHS:PATHS,makeCharacter:makeCharacter,freshProject:freshProject,
     freshPose:freshPose,copyPose:copyPose,newPoseEntry:newPoseEntry,normalizePose:normalizePose,normalize:normalize,renderSVG:renderSVG,applyPreset:applyPreset,
     transforms:transforms,jointPositions:jointPositions,point:point,mul:mul,rotation:rotation,tr:tr,esc:esc,clamp:clamp};

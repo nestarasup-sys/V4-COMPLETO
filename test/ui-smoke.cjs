@@ -26,6 +26,8 @@ async function check(){
   const run=async code=>{try{return await win.webContents.executeJavaScript(code,true);}catch(error){console.error("UI smoke script failed:",code);throw error;}};
   const loaded=await run('({page:window.GachaEditor.state.page,slots:document.querySelectorAll("[data-slot]").length,preview:!!document.querySelector("#phone-preview svg"),homeVisible:!document.querySelector("#page-home").hidden})');
   assert.equal(loaded.page,"home");assert.equal(loaded.slots,16);assert.equal(loaded.preview,true);assert.equal(loaded.homeVisible,true);
+  const poseGrid=await run('({count:document.querySelectorAll("#home-pose-slots .home-pose-slot").length,columns:getComputedStyle(document.querySelector("#home-pose-slots")).gridTemplateColumns.split(" ").length,rows:getComputedStyle(document.querySelector("#home-pose-slots")).gridTemplateRows.split(" ").length})');
+  assert.deepEqual(poseGrid,{count:12,columns:3,rows:4},"A biblioteca inicial deve exibir 12 slots em 3 colunas e 4 linhas");
   const dimensions=await run('(function(){const r=document.querySelector(".phone-shell").getBoundingClientRect();return {w:r.width,h:r.height};})()');
   assert.ok(Math.abs(dimensions.w/dimensions.h-9/16)<.025,"Prévia vertical deve manter 9:16");
   const dir=path.join(__dirname,"..","artifacts");await fs.mkdir(dir,{recursive:true});
@@ -60,6 +62,7 @@ async function check(){
   assert.equal(saved.count,1,"Pose personalizada deve ficar salva no personagem selecionado");
   assert.equal(saved.official,initial,"Salvar pose não pode publicar o rascunho");
   assert.equal(saved.draft,17.5,"Salvar pose deve capturar o rascunho atual");
+  assert.equal(await run('window.GachaEditor.state.project.poseSlots.filter(Boolean).length'),1,"Pose salva no editor deve ocupar o primeiro slot compartilhado");
   await run('document.querySelector("[data-action=\\"duplicate-saved:0\\"]").click()');
   assert.equal(await run('window.GachaEditor.current().savedPoses.length'),2,"Pose salva deve ser duplicável");
   await run('window.prompt=()=>"Pose renomeada";document.querySelector("[data-action=\\"rename-saved:1\\"]").click()');
@@ -78,6 +81,13 @@ async function check(){
   const copied=await run('({count:window.GachaEditor.state.project.slots[1].savedPoses.length,official:window.GachaEditor.state.project.slots[1].pose.head.x})');
   assert.equal(copied.count,1,"Pose deve poder ser copiada para a biblioteca de outro personagem");
   assert.equal(copied.official,0,"Copiar pose para outro personagem não deve publicá-la");
+  await run('document.querySelector("[data-slot=\\"2\\"]").click()');
+  const inherited=await run('({published:window.GachaEditor.current().pose.head.x,draft:window.GachaEditor.current().workingPose.head.x})');
+  assert.equal(inherited.published,17.5,"Personagem novo deve começar com a pose salva no primeiro slot");
+  assert.equal(inherited.draft,17.5,"Rascunho inicial do personagem novo deve acompanhar a primeira pose");
+  await run('window.GachaEditor.current().pose.head.x=0;document.querySelector("[data-action=\\"apply-home-pose:0\\"]").click()');
+  assert.equal(await run('window.GachaEditor.current().pose.head.x'),17.5,"Slot compartilhado deve aplicar pose ao personagem selecionado");
+  await run('document.querySelector("[data-slot=\\"0\\"]").click()');
   await run('window.GachaEditor.current().workingPose.head.x=80;document.querySelector("[data-action=\\"load-saved:0\\"]").click()');
   assert.equal(await run('window.GachaEditor.current().workingPose.head.x'),17.5,"Carregar pose salva deve restaurar apenas o rascunho");
   assert.equal(await run('window.GachaEditor.current().pose.head.x'),initial,"Carregar pose salva não pode publicar automaticamente");

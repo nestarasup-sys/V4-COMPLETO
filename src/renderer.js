@@ -68,12 +68,28 @@ function renderSaved(){
   '<div class="saved-item"><div class="saved-pose-main"><span class="saved-thumb">'+C.renderSVG({...ch,pose:entry.pose},{preview:true})+'</span><span class="saved-name" title="'+C.esc(entry.name)+'">'+C.esc(entry.name)+'</span></div><div class="saved-pose-actions"><button data-action="load-saved:'+i+'" title="Carregar no editor sem aplicar">Editar</button><button data-action="duplicate-saved:'+i+'" aria-label="Duplicar '+C.esc(entry.name)+'" title="Duplicar">⧉</button><button data-action="rename-saved:'+i+'" aria-label="Renomear '+C.esc(entry.name)+'" title="Renomear">✎</button><button data-action="copy-saved:'+i+'" aria-label="Copiar '+C.esc(entry.name)+' para outro personagem" title="Copiar para outro personagem">↗</button><button data-action="export-saved:'+i+'" aria-label="Exportar '+C.esc(entry.name)+'" title="Exportar">⇩</button><button data-action="delete-saved:'+i+'" aria-label="Excluir '+C.esc(entry.name)+'" title="Excluir">×</button></div></div>'
  ).join(""):'<p class="empty-saved">Nenhuma pose salva ainda. Monte sua primeira pose e clique em Guardar.</p>';
 }
+function registerPoseSlot(entry){
+ const slots=s.project.poseSlots;
+ const existing=slots.find(slot=>slot&&slot.id===entry.id);
+ if(existing){existing.name=entry.name;existing.pose=C.copyPose(entry.pose);return true;}
+ const index=slots.findIndex(slot=>!slot);if(index<0)return false;
+ slots[index]={id:entry.id,name:entry.name,pose:C.copyPose(entry.pose)};return true;
+}
+function renderHomePoseSlots(){
+ const slots=s.project.poseSlots||Array(C.POSE_SLOT_COUNT).fill(null),ch=current(),previewBase=ch||C.makeCharacter(0);
+ $("home-pose-count").textContent=slots.filter(Boolean).length+"/"+C.POSE_SLOT_COUNT;
+ $("home-pose-slots").innerHTML=slots.map((entry,index)=>entry?
+  '<button type="button" class="home-pose-slot occupied" data-action="apply-home-pose:'+index+'" aria-label="Aplicar pose '+C.esc(entry.name)+' ao personagem selecionado" title="'+C.esc(entry.name)+'" '+(!ch?"disabled":"")+'><span class="home-pose-thumb">'+C.renderSVG({...previewBase,pose:entry.pose},{preview:true})+'</span><span class="home-pose-slot-name">'+C.esc(entry.name)+'</span><span class="home-pose-slot-index">'+String(index+1).padStart(2,"0")+'</span></button>':
+  '<button type="button" class="home-pose-slot empty" data-action="open-pose" aria-label="Slot de pose '+(index+1)+' vazio. Abrir editor para salvar pose" '+(!ch?"disabled":"")+'><span class="home-pose-empty-icon">＋</span><span class="home-pose-slot-name">Vazio</span><span class="home-pose-slot-index">'+String(index+1).padStart(2,"0")+'</span></button>'
+ ).join("");
+}
 function render(){
  const ch=current();
  $("slot-grid").innerHTML=s.project.slots.map((item,i)=>'<button type="button" class="slot '+(s.slot===i?"selected ":"")+(item?"occupied":"empty")+'" data-slot="'+i+'" aria-label="Slot '+(i+1)+'" aria-pressed="'+(s.slot===i)+'">'+
   (item?'<span class="slot-figure">'+C.renderSVG(item,{preview:true})+'</span>':'<span class="slot-add">+</span>')+
   '<span class="slot-index">'+String(i+1).padStart(2,"0")+'</span></button>').join("");
  $("slot-count").textContent=s.project.slots.filter(Boolean).length+"/16";
+ renderHomePoseSlots();
  $("hero-name").textContent=ch?ch.name:"Slot vazio";
  $("slot-position").textContent="SLOT "+String(s.slot+1).padStart(2,"0");
  $("pose-person-name").textContent=ch?ch.name:"Sem personagem";
@@ -88,7 +104,7 @@ function render(){
 function selectSlot(i){
  if(i<0||i>=16)return;
  s.slot=i;
- if(!current()){const prev=serialize();s.project.slots[i]=C.makeCharacter(i);history(prev);toast("Personagem criado no slot "+(i+1));}
+ if(!current()){const prev=serialize();s.project.slots[i]=C.makeCharacter(i,s.project.poseSlots[0]);history(prev);toast("Personagem criado no slot "+(i+1)+(s.project.poseSlots[0]?" com a pose do slot 01":""));}
  s.part="head";render();
 }
 function restore(kind){
@@ -132,8 +148,9 @@ function savePose(){
  const name=prompt("Nome da nova pose:", "Minha pose "+(ch.savedPoses.length+1));
  if(name===null)return;
  const clean=name.trim().slice(0,50);if(!clean)return toast("Digite um nome para a pose.");
- edit(x=>x.savedPoses.push(C.newPoseEntry(clean,x.workingPose)));
- toast("Pose \""+clean+"\" guardada. A prévia inicial não mudou.");
+ let inQuickSlots=false;
+ edit(x=>{const entry=C.newPoseEntry(clean,x.workingPose);x.savedPoses.push(entry);inQuickSlots=registerPoseSlot(entry);});
+ toast(inQuickSlots?"Pose \""+clean+"\" guardada nos slots rápidos.":"Pose guardada no personagem; os 12 slots rápidos estão cheios.");
 }
 async function importPose(){
  try{
@@ -145,8 +162,9 @@ async function importPose(){
   if(data.format!=="gacha-pose-v1"||data.version!==1||!ch)throw new Error("Arquivo não contém uma pose gacha-pose-v1 válida.");
   if(ch.savedPoses.length>=40)throw new Error("Limite de 40 poses neste personagem.");
   const entry=C.newPoseEntry(String(data.name||"Pose importada").trim().slice(0,50)||"Pose importada",C.normalizePose(data.pose));
-  edit(character=>{character.savedPoses.push(entry);character.workingPose=C.copyPose(entry.pose);});
-  toast("Pose importada para o rascunho e para a biblioteca do personagem.");
+  let inQuickSlots=false;
+  edit(character=>{character.savedPoses.push(entry);character.workingPose=C.copyPose(entry.pose);inQuickSlots=registerPoseSlot(entry);});
+  toast(inQuickSlots?"Pose importada para o editor e os slots rápidos.":"Pose importada para o editor; os 12 slots rápidos estão cheios.");
  }catch(err){toast("Erro ao importar pose: "+err.message);}
 }
 async function exportPose(entry){
@@ -167,6 +185,10 @@ function action(e){
  if(k==="open-pose"){if(current())showPage("pose");return;}
  if(k==="back-home"){showPage("home");return;}
  if(k==="new"){const i=s.project.slots.findIndex(v=>!v);return i===-1?toast("Os 16 slots já estão ocupados."):selectSlot(i);}
+ if(k.startsWith("apply-home-pose:")){
+  const entry=s.project.poseSlots[Number(k.slice(16))];if(!entry||!current())return;
+  edit(ch=>{ch.pose=C.copyPose(entry.pose);ch.workingPose=C.copyPose(entry.pose);});toast("Pose aplicada ao personagem.");return;
+ }
  if(k==="clone"){
   const i=s.project.slots.findIndex(v=>!v);if(!current()||i<0)return toast("Não há slots livres.");
   const before=serialize(),copy=JSON.parse(JSON.stringify(current()));copy.id="person-"+Date.now();copy.name=(copy.name+" (cópia)").slice(0,60);
@@ -203,13 +225,13 @@ function action(e){
  if(k.startsWith("duplicate-saved:")){
   const entry=current()?.savedPoses[Number(k.slice(16))];if(!entry)return;
   if(current().savedPoses.length>=40)return toast("Limite de 40 poses neste personagem.");
-  edit(ch=>ch.savedPoses.push(C.newPoseEntry(entry.name+" (cópia)",entry.pose)));toast("Cópia adicionada à biblioteca do personagem.");return;
+  let inQuickSlots=false;edit(ch=>{const copy=C.newPoseEntry(entry.name+" (cópia)",entry.pose);ch.savedPoses.push(copy);inQuickSlots=registerPoseSlot(copy);});toast(inQuickSlots?"Cópia salva na biblioteca e nos slots rápidos.":"Cópia salva na biblioteca; os slots rápidos estão cheios.");return;
  }
  if(k.startsWith("rename-saved:")){
   const index=Number(k.slice(13)),entry=current()?.savedPoses[index];if(!entry)return;
   const name=prompt("Novo nome da pose:",entry.name);if(name===null)return;
   const clean=name.trim().slice(0,50);if(!clean)return toast("Digite um nome para a pose.");
-  edit(ch=>{ch.savedPoses[index].name=clean;});toast("Pose renomeada.");return;
+  edit(ch=>{ch.savedPoses[index].name=clean;const slot=s.project.poseSlots.find(item=>item&&item.id===entry.id);if(slot)slot.name=clean;});toast("Pose renomeada.");return;
  }
  if(k.startsWith("copy-saved:")){
   const entry=current()?.savedPoses[Number(k.slice(11))];if(!entry)return;
@@ -217,13 +239,13 @@ function action(e){
   const index=Number(destination)-1,target=s.project.slots[index];
   if(!Number.isInteger(index)||index<0||index>=C.SLOT_COUNT||!target)return toast("Escolha um slot ocupado entre 1 e 16.");
   if(target.savedPoses.length>=40)return toast("O personagem de destino já tem 40 poses salvas.");
-  edit(()=>target.savedPoses.push(C.newPoseEntry(entry.name,entry.pose)));
-  toast("Pose copiada para "+target.name+" sem alterar a pose publicada.");return;
+  let inQuickSlots=false;edit(()=>{const copy=C.newPoseEntry(entry.name,entry.pose);target.savedPoses.push(copy);inQuickSlots=registerPoseSlot(copy);});
+  toast(inQuickSlots?"Pose copiada e adicionada aos slots rápidos.":"Pose copiada; os slots rápidos estão cheios.");return;
  }
  if(k.startsWith("export-saved:"))return exportPose(current()?.savedPoses[Number(k.slice(13))]);
  if(k.startsWith("delete-saved:")){
   const index=Number(k.slice(13)),ch=current();if(!ch?.savedPoses[index]||!confirm("Excluir esta pose salva?"))return;
-  edit(c=>{c.savedPoses.splice(index,1);});toast("Pose excluída.");return;
+  edit(c=>{c.savedPoses.splice(index,1);const slot=s.project.poseSlots.findIndex(item=>item&&item.id===entry.id);if(slot>=0)s.project.poseSlots[slot]=null;});toast("Pose excluída.");return;
  }
 }
 function bind(){

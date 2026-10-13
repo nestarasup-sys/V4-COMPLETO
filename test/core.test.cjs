@@ -5,6 +5,19 @@ const core=require("../src/core.js");
 test("16 character slots, first slot ready",()=>{
  const p=core.freshProject();assert.equal(p.slots.length,16);assert.ok(p.slots[0]);assert.equal(p.slots[1],null);
 });
+test("12 shared pose slots survive normalization and seed new characters from slot one",()=>{
+ const project=core.freshProject(),pose=core.freshPose();pose.head.x=42;pose.head.rotation=-12;
+ const entry=core.newPoseEntry("Pose base",pose);project.poseSlots[0]=entry;
+ const restored=core.normalize(JSON.parse(JSON.stringify(project)));
+ assert.equal(restored.poseSlots.length,12);assert.equal(restored.poseSlots[0].name,"Pose base");
+ assert.equal(restored.poseSlots[0].pose.head.x,42);
+ const character=core.makeCharacter(3,restored.poseSlots[0]);
+ assert.deepEqual(character.pose,restored.poseSlots[0].pose);
+ assert.deepEqual(character.workingPose,restored.poseSlots[0].pose);
+ const legacy={format:project.format,version:project.version,slots:project.slots};
+ legacy.slots[0].savedPoses=[entry];
+ assert.equal(core.normalize(legacy).poseSlots[0].name,"Pose base","projetos anteriores recuperam poses salvas para a grade compartilhada");
+});
 test("all ten body pieces with parent joints",()=>{
  const ch=core.makeCharacter(0);assert.equal(core.PARTS.length,10);assert.equal(Object.keys(ch.pose).length,10);
  const matrix=core.transforms(ch);assert.equal(Object.keys(matrix).length,10);
