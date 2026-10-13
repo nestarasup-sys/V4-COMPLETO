@@ -2,6 +2,10 @@
 
 Editor desktop em português para personagens chibi, com 16 slots, prévia oficial em 9:16 e estúdio independente de montagem por peças.
 
+## Abrir no Windows
+
+Dê duplo clique em `Abrir Gacha V4.bat` na pasta do projeto. O launcher instala as dependências se o Electron ainda não estiver instalado e abre o aplicativo. Mantenha a janela do terminal aberta enquanto testa; ela mostra qualquer mensagem de erro.
+
 ## Começar
 
 Requer Node.js 20 ou superior.
@@ -44,3 +48,4 @@ Capturas do smoke:
 ## Limites atuais
 
 O rig usa dez contornos vetoriais; cabelo, rosto detalhado, roupas e pipeline de assets por peça ainda precisam ser implementados. Não há adaptador de exportação para o formato de timeline do editor de vídeo.
+
