@@ -22,6 +22,22 @@ test("all ten body pieces with parent joints",()=>{
  const ch=core.makeCharacter(0);assert.equal(core.PARTS.length,10);assert.equal(Object.keys(ch.pose).length,10);
  const matrix=core.transforms(ch);assert.equal(Object.keys(matrix).length,10);
 });
+test("neutral sprite assembly closes limb gaps and migrates untouched old defaults",()=>{
+ const neutral=core.freshPose();
+ assert.deepEqual(neutral.armLL,{x:34,y:-30,rotation:0},"antebraço sobrepõe o braço superior pelo recorte real do PNG");
+ assert.deepEqual(neutral.legLU,{x:27,y:-21,rotation:0},"coxas se aproximam e sobrepõem mais o tronco");
+ assert.deepEqual(neutral.legLL,{x:5,y:-28,rotation:0},"canela sobrepõe a coxa no joelho");
+ const joints=core.jointPositions(core.makeCharacter(0));
+ for(const [id,value] of Object.entries(joints))assert.ok(Math.hypot(value.parent[0]-value.child[0],value.parent[1]-value.child[1])<1e-6,`${id} mantém a junta alinhada`);
+ const legacy=core.freshProject(),old=legacy.slots[0];
+ old.pose=core.copyPose(old.pose);old.workingPose=core.copyPose(old.workingPose);
+ for(const part of core.PARTS){const base={torso:[0,0],head:[0,23],armLU:[135,58],armLL:[0,-8],armRU:[-135,58],armRL:[0,-8],legLU:[18,-15],legLL:[5,-22],legRU:[-17,-15],legRL:[-5,-22]}[part.id];
+  old.pose[part.id]={x:base[0],y:base[1],rotation:0};old.workingPose[part.id]={x:base[0],y:base[1],rotation:0};}
+ const migrated=core.normalize(legacy).slots[0];
+ assert.deepEqual(migrated.pose,neutral,"pose neutra antiga atualiza para a montagem anatômica nova");
+ assert.deepEqual(migrated.workingPose,neutral,"rascunho neutro antigo também é atualizado");
+ old.pose.head.rotation=14;assert.equal(core.normalize(legacy).slots[0].pose.head.rotation,14,"poses que o usuário realmente alterou são preservadas");
+});
 test("layer order and visibility are normalized and control body rendering",()=>{
  const project=core.freshProject(),character=project.slots[0];
  character.layerOrder=["head","torso","head","unknown"];

@@ -7,15 +7,18 @@
     // Anchor coordinates share the author's PNG pixel space. Child base offsets
     // place each child anchor directly on its parent's anchor in the neutral pose.
     {id:"head", name:"Cabeça", parent:"torso", pivot:[559,318], base:[0,23], joint:{parent:[559,341],child:[559,318]}},
-    {id:"armLU", name:"Braço superior E", parent:"torso", pivot:[335,332], base:[135,58], joint:{parent:[470,390],child:[335,332]}},
-    {id:"armLL", name:"Antebraço E", parent:"armLU", pivot:[257,513], base:[0,-8], joint:{parent:[257,505],child:[257,513]}},
-    {id:"armRU", name:"Braço superior D", parent:"torso", pivot:[791,332], base:[-135,58], joint:{parent:[656,390],child:[791,332]}},
-    {id:"armRL", name:"Antebraço D", parent:"armRU", pivot:[875,513], base:[0,-8], joint:{parent:[875,505],child:[875,513]}},
-    {id:"legLU", name:"Coxa E", parent:"torso", pivot:[461,686], base:[18,-15], joint:{parent:[479,671],child:[461,686]}},
-    {id:"legLL", name:"Canela E", parent:"legLU", pivot:[438,960], base:[5,-22], joint:{parent:[443,938],child:[438,960]}},
-    {id:"legRU", name:"Coxa D", parent:"torso", pivot:[682,686], base:[-17,-15], joint:{parent:[665,671],child:[682,686]}},
-    {id:"legRL", name:"Canela D", parent:"legRU", pivot:[700,960], base:[-5,-22], joint:{parent:[695,938],child:[700,960]}}
+    {id:"armLU", name:"Braço superior E", parent:"torso", pivot:[335,332], base:[147,58], joint:{parent:[482,390],child:[335,332]}},
+    {id:"armLL", name:"Antebraço E", parent:"armLU", pivot:[257,513], base:[34,-30], joint:{parent:[291,483],child:[257,513]}},
+    {id:"armRU", name:"Braço superior D", parent:"torso", pivot:[791,332], base:[-147,58], joint:{parent:[644,390],child:[791,332]}},
+    {id:"armRL", name:"Antebraço D", parent:"armRU", pivot:[875,513], base:[-34,-30], joint:{parent:[841,483],child:[875,513]}},
+    {id:"legLU", name:"Coxa E", parent:"torso", pivot:[461,686], base:[27,-21], joint:{parent:[488,665],child:[461,686]}},
+    {id:"legLL", name:"Canela E", parent:"legLU", pivot:[438,960], base:[5,-28], joint:{parent:[443,932],child:[438,960]}},
+    {id:"legRU", name:"Coxa D", parent:"torso", pivot:[682,686], base:[-26,-21], joint:{parent:[656,665],child:[682,686]}},
+    {id:"legRL", name:"Canela D", parent:"legRU", pivot:[700,960], base:[-5,-28], joint:{parent:[695,932],child:[700,960]}}
   ];
+  // Rest placement for the original exploded sprite sheet: limbs overlap enough
+  // to read as one body while keeping each cutout independently editable.
+  var LEGACY_REST={head:[0,23],armLU:[135,58],armLL:[0,-8],armRU:[-135,58],armRL:[0,-8],legLU:[18,-15],legLL:[5,-22],legRU:[-17,-15],legRL:[-5,-22]};
   var BY_ID = Object.fromEntries(PARTS.map(function(p){ return [p.id,p]; }));
   var DRAW_ORDER=["legLL","legRL","legLU","legRU","armLU","armRU","armLL","armRL","torso","head"];
   var PRESETS = {
@@ -40,6 +43,10 @@
     return pose;
   }
   function copyPose(pose){return JSON.parse(JSON.stringify(pose));}
+  function isLegacyRest(pose){
+    return !!pose&&PARTS.every(function(part){var value=pose[part.id]||{},base=LEGACY_REST[part.id]||[0,0];
+      return Number(value.x||0)===base[0]&&Number(value.y||0)===base[1]&&Number(value.rotation||0)===0;});
+  }
   function newPoseEntry(name,pose){return {id:"pose-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:String(name).slice(0,50),pose:copyPose(pose)};}
   function makeCharacter(index,initialPose){
     var pose=initialPose?normalizePose(initialPose.pose):freshPose();
@@ -59,9 +66,11 @@
       var q=input[piece.id]||{};
       p[piece.id]={x:sane(q.x,-600,600,p[piece.id].x),y:sane(q.y,-600,600,p[piece.id].y),rotation:sane(q.rotation,-180,180,0)};
     });
+    if(isLegacyRest(input))p=freshPose();
     var work={pose:input};
     if(obj.workingPose && typeof obj.workingPose==="object") work.pose=obj.workingPose;
     var w=freshPose();PARTS.forEach(function(piece){var q=work.pose[piece.id]||{};w[piece.id]={x:sane(q.x,-600,600,p[piece.id].x),y:sane(q.y,-600,600,p[piece.id].y),rotation:sane(q.rotation,-180,180,p[piece.id].rotation)};});
+    if(isLegacyRest(work.pose))w=freshPose();
     var entries=Array.isArray(obj.savedPoses)?obj.savedPoses.slice(0,40):[];
     var savedPoses=entries.filter(function(v){return v&&typeof v==="object"&&v.pose;}).map(function(v,i){
       var po=freshPose();PARTS.forEach(function(part){var q=v.pose[part.id]||{};po[part.id]={x:sane(q.x,-600,600,part.base[0]),y:sane(q.y,-600,600,part.base[1]),rotation:sane(q.rotation,-180,180,0)};});
